@@ -1,6 +1,6 @@
 # Cybersecurity Projects
 
-A collection of small cybersecurity projects built for learning, labs, and portfolio work.
+A collection of small cybersecurity projects built for learning
 
 ## Projects
 
