@@ -1,0 +1,7 @@
+Sep 29 10:20:01 server sshd[101]: Failed password for admin from 192.168.1.45 port 50001
+Sep 29 10:20:05 server sshd[102]: Failed password for admin from 192.168.1.45 port 50002
+Sep 29 10:20:09 server sshd[103]: Failed password for admin from 192.168.1.45 port 50003
+Sep 29 10:20:13 server sshd[104]: Failed password for admin from 192.168.1.45 port 50004
+Sep 29 10:20:18 server sshd[105]: Failed password for admin from 192.168.1.45 port 50005
+Sep 29 10:21:01 server sshd[110]: Accepted password for faisal from 192.168.1.20 port 51000
+Sep 29 10:22:42 server web[250]: request from 192.168.1.30 GET /index.html
