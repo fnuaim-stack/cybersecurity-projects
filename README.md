@@ -13,6 +13,7 @@ I wanted to keep them in one repo instead of making a new repo for every small i
 | [Log Analyzer](./log-analyzer/) | Checks logs for repeated failed logins and IP activity |
 | [File Integrity Monitor](./file-integrity-monitor/) | Uses SHA-256 hashes to notice changed, added, or deleted files |
 | [Vulnerability Dashboard](./vulnerability-dashboard/) | Small browser dashboard for tracking vulnerability findings and their status |
+| [HTTP Security Header Checker](./http-security-checker/) | Checks a site for a few common browser security headers |
 
 ## Folder structure
 
@@ -22,10 +23,13 @@ cybersecurity-projects/
 ├── packet-analyzer/
 ├── log-analyzer/
 ├── file-integrity-monitor/
-└── vulnerability-dashboard/
+├── vulnerability-dashboard/
+└── http-security-checker/
 ```
 
 Every project has its own README with the commands needed to run it.
+
+I also added a small [roadmap](./ROADMAP.md) so there is always a list of things worth improving instead of making random changes just for the sake of commits.
 
 These are learning projects, so I am keeping the code readable and not trying to turn every project into something huge.
 
