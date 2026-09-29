@@ -1,14 +1,40 @@
 # File Integrity Monitor
 
-A defensive tool that detects unexpected changes to monitored files using cryptographic hashes.
+This project checks if files inside a folder changed.
 
-## Planned Features
+It makes a baseline using SHA-256 hashes. Later, you can run it again and it will tell you if a file was added, changed, or deleted.
 
-- Create a baseline of file hashes
-- Detect modified, deleted, and new files
-- Timestamp detected changes
-- Generate a readable alert log
+## Make a baseline
 
-## Status
+```bash
+python monitor.py init ./test-folder
+```
 
-Planned.
+That creates `baseline.json`.
+
+## Check for changes
+
+```bash
+python monitor.py check ./test-folder
+```
+
+Example:
+
+```text
+Added:
+  + notes.txt
+
+Modified:
+  * config.ini
+
+Deleted:
+  - old.txt
+```
+
+You can also choose where the baseline file is saved:
+
+```bash
+python monitor.py init ./test-folder --baseline my-baseline.json
+```
+
+This is a small learning version of the same basic idea used by file integrity monitoring tools.
