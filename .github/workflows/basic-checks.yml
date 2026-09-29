@@ -1,0 +1,38 @@
+name: basic checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install packet analyzer dependency
+        run: pip install -r packet-analyzer/requirements.txt
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile network-scanner/scanner.py
+          python -m py_compile packet-analyzer/analyzer.py
+          python -m py_compile log-analyzer/analyzer.py
+          python -m py_compile file-integrity-monitor/monitor.py
+          python -m py_compile http-security-checker/check_headers.py
+
+      - name: Run simple smoke tests
+        run: |
+          python network-scanner/scanner.py --help
+          python packet-analyzer/analyzer.py --help
+          python log-analyzer/analyzer.py log-analyzer/sample.log --threshold 3
+          mkdir -p /tmp/fim-test
+          echo "hello" > /tmp/fim-test/test.txt
+          python file-integrity-monitor/monitor.py init /tmp/fim-test --baseline /tmp/fim-baseline.json
+          python file-integrity-monitor/monitor.py check /tmp/fim-test --baseline /tmp/fim-baseline.json
+          python http-security-checker/check_headers.py --help
