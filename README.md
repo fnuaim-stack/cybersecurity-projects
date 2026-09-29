@@ -1,18 +1,20 @@
 # Cybersecurity Projects
 
-A collection of small cybersecurity projects built for learning
+Just a collection of small cybersecurity projects I am building for practice.
+
+I wanted to keep them in one repo instead of making a new repo for every small idea.
 
 ## Projects
 
-| Project | Goal |
+| Project | What it does |
 |---|---|
-| [Network Scanner](./network-scanner/) | Discover hosts and inspect common network services in an authorized lab |
-| [Packet Analyzer](./packet-analyzer/) | Capture and summarize network packets |
-| [Log Analyzer](./log-analyzer/) | Parse logs and highlight suspicious patterns |
-| [File Integrity Monitor](./file-integrity-monitor/) | Detect unexpected file changes using hashes |
-| [Vulnerability Dashboard](./vulnerability-dashboard/) | Organize vulnerability findings, priorities, remediation, and verification |
+| [Network Scanner](./network-scanner/) | Checks a host for open TCP ports |
+| [Packet Analyzer](./packet-analyzer/) | Captures packets and gives a small traffic summary |
+| [Log Analyzer](./log-analyzer/) | Checks logs for repeated failed logins and IP activity |
+| [File Integrity Monitor](./file-integrity-monitor/) | Uses SHA-256 hashes to notice changed, added, or deleted files |
+| [Vulnerability Dashboard](./vulnerability-dashboard/) | Small browser dashboard for tracking vulnerability findings and their status |
 
-## Repository Structure
+## Folder structure
 
 ```text
 cybersecurity-projects/
@@ -23,8 +25,8 @@ cybersecurity-projects/
 └── vulnerability-dashboard/
 ```
 
-## Purpose
+Every project has its own README with the commands needed to run it.
 
-These projects are intended for defensive security learning and authorized testing environments.
+These are learning projects, so I am keeping the code readable and not trying to turn every project into something huge.
 
-More projects will be added over time.
+Anything that scans or captures network traffic should only be used on systems and networks you own or have permission to test.
