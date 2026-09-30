@@ -1,63 +1,89 @@
 # Network Scanner
 
-I made this as a small Python project to practice sockets and basic port scanning.
+This started as a tiny TCP scanner and now it can do both single-host scans and fast local subnet sweeps.
 
-It scans one host at a time and tells you which TCP ports are open. I kept it simple on purpose so the code is easy to read and change later.
+It still only uses Python's built-in libraries.
 
 ## What it does
 
-- scans common TCP ports
-- lets you choose your own ports
-- shows the service name when Python knows it
-- can save the results to a JSON file
-- accepts an IP address or hostname
+- scans one host or an IPv4 CIDR subnet
+- shows whether a host replied to TCP discovery probes
+- finds open TCP ports
+- shows the normal service name for open ports when Python knows it
+- uses concurrent workers so LAN scans are much faster
+- can bind to a local source IP so I can choose which network interface is used
+- supports a fast sweep-only mode
+- saves JSON for the Pentest Workbench
 
-It only uses Python's built-in libraries, so there is nothing extra to install.
-
-## Run it
-
-```bash
-python scanner.py 192.168.1.1
-```
-
-Scan specific ports:
+## Single host
 
 ```bash
-python scanner.py 192.168.1.1 --ports 22,80,443
+python scanner.py 192.168.0.181 --ports 1-1000
 ```
 
-Scan a small range:
+You can also test localhost:
 
 ```bash
-python scanner.py 192.168.1.1 --ports 1-100
+python scanner.py 127.0.0.1 --ports 5000
 ```
 
-Save the result:
+## Scan a subnet
+
+For a normal /24 home or lab network:
 
 ```bash
-python scanner.py 192.168.1.1 --ports 1-100 --json result.json
+python scanner.py 192.168.0.0/24 --ports 22,80,443,445,3389,5000,8080
 ```
 
-You can also scan a hostname:
+That first does a quick host sweep and then scans the selected ports on hosts that replied.
+
+## Fast sweep only
+
+If I only want to see which hosts reply:
 
 ```bash
-python scanner.py example.com --ports 80,443
+python scanner.py 192.168.0.0/24 --sweep-only
 ```
 
-## Example output
+## Choose a network interface
 
-```text
-Target: 192.168.1.1 (192.168.1.1)
-Scanning 3 TCP ports...
+The scanner selects the interface automatically through the operating system routing table.
 
-[OPEN] 80    http
-[OPEN] 443   https
+To force a specific local interface, bind to that interface's IPv4 address:
 
-Finished in 0.42 seconds.
+```bash
+python scanner.py 192.168.0.0/24 --source-ip 192.168.0.181
 ```
 
-## Notes
+This is the same source-IP selector shown in the Pentest Workbench UI.
 
-This is a basic TCP connect scanner, not something meant to replace Nmap.
+## Speed
 
-Use it on your own devices, lab machines, or systems you have permission to test.
+Default concurrency is 128 workers:
+
+```bash
+python scanner.py 192.168.0.0/24 --workers 128
+```
+
+The maximum is 256. More workers are not always faster, especially over Wi-Fi.
+
+The default timeout is 0.25 seconds because this project is mainly aimed at local networks. If a lab network is slow, increase it.
+
+## Host status note
+
+**UP** means the host replied to at least one TCP discovery probe.
+
+A real device can still appear as **NO RESPONSE** if its firewall silently drops all of the discovery probes. This scanner does not pretend that TCP discovery is perfect host detection.
+
+## Limits
+
+To keep accidental scans under control:
+
+- single host: up to 2000 selected ports
+- subnet scan: up to 200 selected ports
+- subnet size: up to 1024 hosts
+- total TCP checks are capped
+
+This is still a learning scanner, not a replacement for Nmap.
+
+Use it only on devices, labs, and networks you own or have permission to test.
