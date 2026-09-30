@@ -35,6 +35,8 @@ jobs:
       - name: Run simple smoke tests
         run: |
           python network-scanner/scanner.py --help
+          python network-scanner/scanner.py 127.0.0.1 --ports 1 --timeout 0.05 --workers 8 --json /tmp/network.json
+          python -c "import importlib.util; s=importlib.util.spec_from_file_location('scanner','network-scanner/scanner.py'); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); assert m.parse_target('192.168.1.0/30')['mode'] == 'subnet'"
           python packet-analyzer/analyzer.py --help
           python log-analyzer/analyzer.py log-analyzer/sample.log --threshold 3
           mkdir -p /tmp/fim-test
