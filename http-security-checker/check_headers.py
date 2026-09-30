@@ -62,6 +62,7 @@ def get_tls_info(url, timeout):
             with context.wrap_socket(raw, server_hostname=parsed.hostname) as tls_socket:
                 cert = tls_socket.getpeercert()
                 cipher = tls_socket.cipher()
+                tls_version = tls_socket.version()
     except (OSError, ssl.SSLError) as error:
         return {"error": str(error)}
 
@@ -79,7 +80,7 @@ def get_tls_info(url, timeout):
             pass
 
     return {
-        "version": tls_socket.version() if False else None,
+        "version": tls_version,
         "cipher": cipher[0] if cipher else None,
         "subject": _flatten_name(cert.get("subject", ())),
         "issuer": _flatten_name(cert.get("issuer", ())),
