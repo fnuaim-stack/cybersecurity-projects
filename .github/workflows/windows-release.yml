@@ -111,9 +111,30 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
-          gh release create $version `
-            ".\dist\Pentest-Workbench.exe" `
-            ".\dist\Pentest-Workbench.exe.sha256" `
-            --target "${{ github.sha }}" `
-            --title "Pentest Workbench $version" `
-            --notes "My first packaged Pentest Workbench release. Download Pentest-Workbench.exe and run it on Windows. It starts the local Workbench at http://127.0.0.1:5000 and opens the browser automatically. Some packet capture and system inspection features may need Administrator access."
+          $title = if ($version -eq "v0.1.0-prealpha.1") {
+            "Pentest Workbench v0.1.0 Pre-Alpha"
+          } else {
+            "Pentest Workbench $version"
+          }
+
+          gh release view $version *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $version `
+              ".\dist\Pentest-Workbench.exe" `
+              ".\dist\Pentest-Workbench.exe.sha256" `
+              --clobber
+
+            $release = gh api "repos/${{ github.repository }}/releases/tags/$version" | ConvertFrom-Json
+            gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" `
+              -f name="$title" `
+              -f target_commitish="main" `
+              -F prerelease=false `
+              -f make_latest="true"
+          } else {
+            gh release create $version `
+              ".\dist\Pentest-Workbench.exe" `
+              ".\dist\Pentest-Workbench.exe.sha256" `
+              --target "${{ github.sha }}" `
+              --title "$title" `
+              --notes "My first packaged Pentest Workbench release. Download Pentest-Workbench.exe and run it on Windows. It starts the local Workbench at http://127.0.0.1:5000 and opens the browser automatically. Some packet capture and system inspection features may need Administrator access."
+          }
