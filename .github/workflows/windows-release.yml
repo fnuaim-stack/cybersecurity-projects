@@ -1,0 +1,119 @@
+name: Windows release
+
+on:
+  pull_request:
+    paths:
+      - "VERSION"
+      - ".github/workflows/windows-release.yml"
+      - "pentest-workbench/**"
+      - "network-scanner/**"
+      - "http-security-checker/**"
+      - "packet-analyzer/**"
+      - "log-analyzer/**"
+      - "file-integrity-monitor/**"
+      - "system-hardening-auditor/**"
+      - "nmap-result-explorer/**"
+      - "web-endpoint-inventory/**"
+      - "ctf-toolbox/**"
+      - "wordlist-lab/**"
+      - "evidence-organizer/**"
+      - "socket-leak-guard/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "VERSION"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r pentest-workbench/requirements.txt
+          pip install pyinstaller
+
+      - name: Build EXE
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --name Pentest-Workbench `
+            --collect-all scapy `
+            --add-data "pentest-workbench/templates;templates" `
+            --add-data "pentest-workbench/static;static" `
+            --add-data "network-scanner/scanner.py;network-scanner" `
+            --add-data "http-security-checker/check_headers.py;http-security-checker" `
+            --add-data "packet-analyzer/analyzer.py;packet-analyzer" `
+            --add-data "log-analyzer/analyzer.py;log-analyzer" `
+            --add-data "file-integrity-monitor/monitor.py;file-integrity-monitor" `
+            --add-data "system-hardening-auditor/hardening_audit.py;system-hardening-auditor" `
+            --add-data "nmap-result-explorer/nmap_explorer.py;nmap-result-explorer" `
+            --add-data "web-endpoint-inventory/endpoint_inventory.py;web-endpoint-inventory" `
+            --add-data "ctf-toolbox/toolbox.py;ctf-toolbox" `
+            --add-data "wordlist-lab/wordlist_lab.py;wordlist-lab" `
+            --add-data "evidence-organizer/evidence.py;evidence-organizer" `
+            --add-data "socket-leak-guard/socket_leak_guard.py;socket-leak-guard" `
+            pentest-workbench/app.py
+
+      - name: Smoke test EXE
+        shell: pwsh
+        run: |
+          $env:PTW_NO_BROWSER = "1"
+          $env:PTW_DB = "$env:RUNNER_TEMP\workbench-smoke.db"
+          $process = Start-Process -FilePath ".\dist\Pentest-Workbench.exe" -PassThru
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 1
+              try {
+                $response = Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 2
+                if ($response.StatusCode -eq 200) {
+                  $ready = $true
+                  break
+                }
+              } catch {}
+            }
+            if (-not $ready) {
+              throw "Pentest Workbench EXE did not start correctly."
+            }
+          } finally {
+            Get-Process "Pentest-Workbench" -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+
+      - name: Create checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash ".\dist\Pentest-Workbench.exe" -Algorithm SHA256).Hash.ToLower()
+          "$hash  Pentest-Workbench.exe" | Set-Content ".\dist\Pentest-Workbench.exe.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pentest-Workbench-Windows
+          path: |
+            dist/Pentest-Workbench.exe
+            dist/Pentest-Workbench.exe.sha256
+
+      - name: Publish GitHub release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          gh release create $version `
+            ".\dist\Pentest-Workbench.exe" `
+            ".\dist\Pentest-Workbench.exe.sha256" `
+            --target "${{ github.sha }}" `
+            --title "Pentest Workbench $version" `
+            --notes "My first packaged Pentest Workbench release. Download Pentest-Workbench.exe and run it on Windows. It starts the local Workbench at http://127.0.0.1:5000 and opens the browser automatically. Some packet capture and system inspection features may need Administrator access."
