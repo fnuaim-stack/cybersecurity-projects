@@ -1,8 +1,9 @@
 # Cybersecurity Projects
 
-I am learning cybersecurity, so I use this repo to build small tools and practice with them.
+I am currently a cybersecurity student, so I use this repo to build small tools and practice with them.
+I actually made some of these tools because I ran into the exact same issues myself while solving CTFs or general problems with my device.
 
-Most tools can run by themselves. I also made **Pentest Workbench** so I can use them from one local web page.
+Most tools can run by themselves. I also made **Pentest Workbench** so I can use all of them from one local web page.
 
 ## Run the Workbench
 
@@ -20,4 +21,4 @@ http://127.0.0.1:5000
 
 The repo includes things like network scanning, packet analysis, log checking, file integrity, system hardening, CTF helpers, evidence organization, and socket leak checking.
 
-I only use scanning and packet capture on systems or networks I own or have permission to test.
+try to have permission before using them (Not like they do anything serious anyway but be careful)
