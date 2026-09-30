@@ -1,57 +1,61 @@
 # Roadmap
 
-No strict schedule here. This is the list I use when deciding what is actually worth building next.
+No strict schedule. I use this to keep the repo moving in a useful direction instead of adding random scripts.
 
 ## Current direction
 
-I want the repo to have both offensive-security and defensive projects, with more focus on penetration testing and red-team learning.
+The main goal is one practical PT/security workbench with small tools that can still run by themselves.
 
-The goal is not to dump random scripts into folders. I would rather have projects that connect together and slowly become useful tools.
+The standalone vulnerability dashboard is gone. Findings, status tracking, and reports now live in the Pentest Workbench.
 
-## In progress / next improvements
+## Next upgrades
 
 ### Pentest Workbench
 
-- import more result formats
-- add tags and CVE/reference fields
-- attach evidence paths to findings
-- add assessment scope and notes
-- export JSON as well as Markdown
-- add a small local web UI when the CLI/data model is stable
+- assessment scope and notes
+- tags and CVE/reference fields
+- evidence file attachments
+- JSON/CSV report export
+- better history view for previous tool runs
+- reusable assessment profiles
 
 ### Network Scanner
 
-- add safe concurrency so larger lab scans are faster
-- improve service information
-- make its JSON output richer for the workbench
+- optional scan presets
+- better service fingerprints without turning it into a full Nmap clone
+- export cleaner host inventories
 
-### HTTP Security Header Checker
+### HTTP Security Checker
 
-- add response metadata and redirect history
-- make findings easier to import into the workbench
-- avoid treating every missing header as automatically serious
+- more useful CSP parsing
+- certificate-chain details
+- optional HTML report output
 
 ### Packet Analyzer
 
-- add capture filters
-- improve protocol summaries
-- add PCAP-only analysis mode so saved captures can be reviewed without live sniffing
+- PCAP timeline view
+- more DNS and TCP conversation detail
+- export filtered packet summaries
 
-### Defensive projects
+### Log Analyzer
 
-- support more real log formats in the log analyzer
-- let the file integrity monitor save a proper change report
-- connect the vulnerability dashboard to a small backend instead of browser-only storage
+- presets for SSH/auth.log, Apache/Nginx, and Windows-style exports
+- time-window filtering
+- small rule system for custom detections
 
-## New project ideas
+### File Integrity Monitor
 
-- DNS and domain reconnaissance helper
-- service-enumeration notes helper for lab targets
+- baseline labels
+- multiple saved baselines
+- optional allowlist for expected changes
+
+## Project ideas
+
+- DNS/domain recon helper
 - web endpoint inventory tool
-- wordlist cleanup and mutation utilities
+- wordlist cleanup/mutation utilities
 - CTF notes/evidence organizer
 - offline hash identification and lab password-audit helper
-- PCAP investigation toolkit
-- assessment report templates and evidence management
+- assessment evidence organizer
 
-Everything that touches a target should stay scoped to systems I own, labs, CTFs, or environments where I have permission to test.
+Everything that touches a target stays scoped to systems I own, labs, CTFs, or environments where I have permission to test.
