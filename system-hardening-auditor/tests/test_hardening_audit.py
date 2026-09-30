@@ -1,11 +1,13 @@
 import importlib.util
 import pathlib
+import sys
 import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("hardening_audit", ROOT / "hardening_audit.py")
 AUDIT = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = AUDIT
 assert SPEC.loader is not None
 SPEC.loader.exec_module(AUDIT)
 
