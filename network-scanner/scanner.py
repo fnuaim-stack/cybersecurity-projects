@@ -221,8 +221,34 @@ def scan_hosts(hosts, ports, timeout, workers, source_ip=None):
     return grouped
 
 
-def build_host_rows(all_hosts, up_hosts, port_results, discovery_open):
+def reverse_lookup(ip):
+    try:
+        return socket.gethostbyaddr(ip)[0]
+    except (socket.herror, socket.gaierror, OSError):
+        return None
+
+
+def resolve_hostnames(hosts, workers=32):
+    names = {}
+
+    with ThreadPoolExecutor(max_workers=min(workers, 32)) as executor:
+        future_map = {
+            executor.submit(reverse_lookup, ip): ip
+            for ip in hosts
+        }
+
+        for future in as_completed(future_map):
+            ip = future_map[future]
+            name = future.result()
+            if name:
+                names[ip] = name
+
+    return names
+
+
+def build_host_rows(all_hosts, up_hosts, port_results, discovery_open, hostnames=None):
     rows = []
+    hostnames = hostnames or {}
 
     for ip in all_hosts:
         open_ports = port_results.get(ip, [])
@@ -231,6 +257,7 @@ def build_host_rows(all_hosts, up_hosts, port_results, discovery_open):
         rows.append(
             {
                 "ip": ip,
+                "hostname": hostnames.get(ip),
                 "status": "up" if ip in up_hosts else "down",
                 "open_ports": open_ports,
                 "discovery_open_ports": discovery_ports,
@@ -248,6 +275,7 @@ def scan_target(
     workers=DEFAULT_WORKERS,
     source_ip=None,
     sweep_only=False,
+    resolve_names=False,
 ):
     parsed = parse_target(target)
     source_ip = validate_source_ip(source_ip)
@@ -293,11 +321,14 @@ def scan_target(
         # An open selected port is also proof the host is reachable.
         up_hosts.update(ip for ip, items in port_results.items() if items)
 
+    hostnames = resolve_hostnames(up_hosts) if resolve_names and up_hosts else {}
+
     rows = build_host_rows(
         parsed["hosts"],
         up_hosts,
         port_results,
         discovery_open,
+        hostnames,
     )
 
     elapsed = round(time.time() - started, 2)
@@ -312,6 +343,7 @@ def scan_target(
         "timeout_seconds": timeout,
         "workers": workers,
         "sweep_only": sweep_only,
+        "resolve_names": resolve_names,
         "ports_scanned": 0 if sweep_only else len(selected_ports),
         "selected_ports": selected_ports,
         "hosts_total": len(rows),
@@ -373,7 +405,10 @@ def print_result(result):
                     for port in host["discovery_open_ports"]
                 )
 
-            print(f"[UP] {host['ip']:<15} {services or 'no selected open ports'}")
+            label = host["ip"]
+            if host.get("hostname"):
+                label += f" ({host['hostname']})"
+            print(f"[UP] {label:<35} {services or 'no selected open ports'}")
 
     print(f"\nFinished in {result['elapsed_seconds']} seconds.")
 
@@ -413,6 +448,11 @@ def main():
         help="Discover responsive hosts without the full selected-port scan",
     )
     parser.add_argument(
+        "--resolve-names",
+        action="store_true",
+        help="Try reverse-DNS lookups for responsive hosts",
+    )
+    parser.add_argument(
         "--json",
         dest="json_path",
         help="Optional path to save the result as JSON",
@@ -427,6 +467,7 @@ def main():
             workers=args.workers,
             source_ip=args.source_ip,
             sweep_only=args.sweep_only,
+            resolve_names=args.resolve_names,
         )
     except ValueError as error:
         parser.error(str(error))

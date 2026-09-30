@@ -1,20 +1,19 @@
 # Cybersecurity Projects
 
-This repo started as a place for small cybersecurity projects and I am slowly turning it into a mix of red-team, penetration-testing, defensive, and vulnerability-management work.
+This repo is where I keep my cybersecurity projects and slowly connect them into one usable toolkit.
 
-I still want the code to stay readable instead of making every project complicated for no reason.
+The main project is the **Pentest Workbench**. The smaller tools still work by themselves, but they also plug into the same local UI and findings database.
 
 ## Projects
 
 | Project | What it does |
 |---|---|
-| [Pentest Workbench](./pentest-workbench/) | Local SQLite workbench for findings, tool imports, status tracking, and Markdown reports |
-| [Network Scanner](./network-scanner/) | Checks a host for open TCP ports |
-| [HTTP Security Header Checker](./http-security-checker/) | Checks a site for a few common browser security headers |
-| [Packet Analyzer](./packet-analyzer/) | Captures packets and gives a small traffic summary |
-| [Log Analyzer](./log-analyzer/) | Checks logs for repeated failed logins and IP activity |
-| [File Integrity Monitor](./file-integrity-monitor/) | Uses SHA-256 hashes to notice changed, added, or deleted files |
-| [Vulnerability Dashboard](./vulnerability-dashboard/) | Small browser dashboard for tracking vulnerability findings and their status |
+| [Pentest Workbench](./pentest-workbench/) | Local UI that connects the tools, stores findings, tracks status, and builds reports |
+| [Network Scanner](./network-scanner/) | Fast single-host and subnet TCP scanning with service names and optional hostname lookup |
+| [HTTP Security Checker](./http-security-checker/) | Passive HTTP, redirect, cookie, security-header, and TLS checks |
+| [Packet Analyzer](./packet-analyzer/) | Live packet capture or offline PCAP analysis with protocol, DNS, port, and talker summaries |
+| [Log Analyzer](./log-analyzer/) | Parses authentication and basic web events, IPs, users, and repeated failed logins |
+| [File Integrity Monitor](./file-integrity-monitor/) | SHA-256 baselines with file metadata, excludes, and detailed change reports |
 
 ## Folder structure
 
@@ -26,13 +25,25 @@ cybersecurity-projects/
 ├── packet-analyzer/
 ├── log-analyzer/
 ├── file-integrity-monitor/
-└── vulnerability-dashboard/
+└── tests/
 ```
 
-The newer direction is to make the projects work together where it makes sense. For example, the Pentest Workbench can already import JSON results from the Network Scanner and HTTP Security Header Checker instead of treating every folder like a completely separate demo.
+The old standalone vulnerability dashboard was removed because the Workbench now handles findings and reporting in one place.
 
-Every project has its own README with the commands needed to run it.
+## Run the UI
 
-There is also a [roadmap](./ROADMAP.md) for things I want to build or improve next.
+```bash
+cd pentest-workbench
+pip install -r requirements.txt
+python app.py
+```
 
-Anything that scans, captures traffic, or supports penetration testing is meant for labs, CTF-style environments, and systems I own or have permission to test.
+Then open:
+
+```text
+http://127.0.0.1:5000
+```
+
+Each tool also has its own README and CLI.
+
+Anything that scans, captures traffic, or supports penetration testing is meant for labs, CTF-style environments, and systems or networks I own or have permission to test.

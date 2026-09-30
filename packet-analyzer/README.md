@@ -1,8 +1,6 @@
 # Packet Analyzer
 
-This one is a small Scapy project I made to practice looking at live network traffic.
-
-It captures packets, shows the source and destination, guesses the main protocol, and gives a small summary at the end.
+A Scapy-based traffic analyzer for live captures and saved PCAP files.
 
 ## Setup
 
@@ -10,14 +8,12 @@ It captures packets, shows the source and destination, guesses the main protocol
 pip install -r requirements.txt
 ```
 
-On Windows, run the terminal as Administrator if Scapy cannot capture packets.
+On Windows, live capture may need Administrator privileges and Npcap.
 
-## Run it
-
-Capture 20 packets:
+## Live capture
 
 ```bash
-python analyzer.py --count 20
+python analyzer.py --count 50
 ```
 
 Capture for 10 seconds:
@@ -26,16 +22,35 @@ Capture for 10 seconds:
 python analyzer.py --timeout 10
 ```
 
-Save the capture too:
+Use a BPF filter:
+
+```bash
+python analyzer.py --timeout 10 --filter "tcp port 443"
+```
+
+Save the live capture:
 
 ```bash
 python analyzer.py --timeout 10 --save capture.pcap
 ```
 
-You can also choose an interface:
+## Offline PCAP analysis
 
 ```bash
-python analyzer.py --interface "Wi-Fi" --count 30
+python analyzer.py --pcap capture.pcap
 ```
 
-This is mainly for learning and checking traffic on networks you are allowed to monitor.
+## Summary data
+
+It reports:
+
+- protocol counts
+- packet source/destination
+- TCP/UDP ports
+- packet lengths
+- top talkers
+- top conversations
+- common destination ports
+- DNS query names
+
+The Workbench can also upload a PCAP and show the same summary in the browser.
