@@ -25,6 +25,10 @@ jobs:
           python -m py_compile log-analyzer/analyzer.py
           python -m py_compile file-integrity-monitor/monitor.py
           python -m py_compile http-security-checker/check_headers.py
+          python -m py_compile pentest-workbench/workbench.py
+          python -m py_compile pentest-workbench/ptworkbench/storage.py
+          python -m py_compile pentest-workbench/ptworkbench/importers.py
+          python -m py_compile pentest-workbench/ptworkbench/report.py
 
       - name: Run simple smoke tests
         run: |
@@ -36,3 +40,7 @@ jobs:
           python file-integrity-monitor/monitor.py init /tmp/fim-test --baseline /tmp/fim-baseline.json
           python file-integrity-monitor/monitor.py check /tmp/fim-test --baseline /tmp/fim-baseline.json
           python http-security-checker/check_headers.py --help
+          python pentest-workbench/workbench.py --help
+
+      - name: Run pentest workbench tests
+        run: python -m unittest discover -s pentest-workbench/tests -v
