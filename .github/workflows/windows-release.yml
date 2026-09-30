@@ -50,6 +50,17 @@ jobs:
         run: |
           pyinstaller --noconfirm --clean --onefile --name Pentest-Workbench `
             --collect-all scapy `
+            --collect-all psutil `
+            --hidden-import http.cookies `
+            --hidden-import urllib.error `
+            --hidden-import urllib.parse `
+            --hidden-import urllib.request `
+            --hidden-import xml.etree.ElementTree `
+            --hidden-import html `
+            --hidden-import shlex `
+            --hidden-import ipaddress `
+            --hidden-import fnmatch `
+            --hidden-import posixpath `
             --add-data "pentest-workbench/templates;templates" `
             --add-data "pentest-workbench/static;static" `
             --add-data "network-scanner/scanner.py;network-scanner" `
@@ -72,12 +83,13 @@ jobs:
           $env:PTW_NO_BROWSER = "1"
           $env:PTW_DB = "$env:RUNNER_TEMP\workbench-smoke.db"
           $process = Start-Process -FilePath ".\dist\Pentest-Workbench.exe" -PassThru
+          $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
           try {
             $ready = $false
             for ($i = 0; $i -lt 30; $i++) {
               Start-Sleep -Seconds 1
               try {
-                $response = Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 2
+                $response = Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 2 -WebSession $session
                 if ($response.StatusCode -eq 200) {
                   $ready = $true
                   break
@@ -86,6 +98,21 @@ jobs:
             }
             if (-not $ready) {
               throw "Pentest Workbench EXE did not start correctly."
+            }
+
+            $socketResult = Invoke-WebRequest -Uri "http://127.0.0.1:5000/sockets/top" -Method Post -Body @{ limit = "5" } -UseBasicParsing -WebSession $session
+            if ($socketResult.Content -match "Missing dependency|No module named 'psutil'") {
+              throw "Socket Guard dependency check failed inside the EXE."
+            }
+
+            $headerResult = Invoke-WebRequest -Uri "http://127.0.0.1:5000/headers" -Method Post -Body @{ url = "http://127.0.0.1:5000/"; timeout = "4" } -UseBasicParsing -WebSession $session
+            if ($headerResult.Content -match "ModuleNotFoundError|No module named 'http.cookies'|Traceback") {
+              throw "Web Headers runtime check failed inside the EXE."
+            }
+
+            $ctfResult = Invoke-WebRequest -Uri "http://127.0.0.1:5000/ctf" -Method Post -Body @{ command = "b64-decode"; value = "2YXYsdit2KjYpw==" } -UseBasicParsing -WebSession $session
+            if ($ctfResult.Content -notmatch "CTF tool finished" -or $ctfResult.Content -match "UnicodeEncodeError|can't encode|character maps") {
+              throw "CTF UTF-8 runtime check failed inside the EXE."
             }
           } finally {
             Get-Process "Pentest-Workbench" -ErrorAction SilentlyContinue | Stop-Process -Force
