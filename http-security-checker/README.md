@@ -1,34 +1,29 @@
-# HTTP Security Header Checker
+# HTTP Security Checker
 
-A small passive web-security checker.
+A small passive web checker. It sends a normal request and inspects the response instead of trying to exploit anything.
 
-It sends a normal request to a website and checks whether a few common security headers are there. It does not try to exploit anything or send attack payloads.
+## What it checks
+
+- common browser security headers
+- final URL and redirect chain
+- basic response metadata
+- cookie flags: Secure, HttpOnly, SameSite
+- HTTPS certificate issuer/subject
+- TLS version and cipher
+- certificate expiry
 
 ## Run it
-
-```bash
-python check_headers.py example.com
-```
-
-Or use a full URL:
 
 ```bash
 python check_headers.py https://example.com
 ```
 
-Save the result:
+Save JSON:
 
 ```bash
 python check_headers.py https://example.com --json result.json
 ```
 
-## What it checks
+Missing headers or cookie flags are review items, not automatic proof that a site is vulnerable. Context still matters.
 
-- Strict-Transport-Security
-- Content-Security-Policy
-- X-Content-Type-Options
-- X-Frame-Options
-- Referrer-Policy
-- Permissions-Policy
-
-Missing a header does not automatically mean a site is vulnerable. This is just a quick checklist and a way to practice working with HTTP responses in Python.
+The Workbench can run this checker and save review items into the shared findings database.
