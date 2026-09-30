@@ -14,6 +14,7 @@ The main app is the **Pentest Workbench**, but the repo now also has a bigger re
 | [Packet Analyzer](./packet-analyzer/) | Live capture or offline PCAP analysis |
 | [Log Analyzer](./log-analyzer/) | Authentication/basic web log analysis |
 | [File Integrity Monitor](./file-integrity-monitor/) | SHA-256 baselines and change reports |
+| [System Hardening Auditor](./system-hardening-auditor/) | Read-only Windows/Linux baseline audit with JSON, Markdown, and HTML remediation reports |
 
 ## Red-team / PT projects
 

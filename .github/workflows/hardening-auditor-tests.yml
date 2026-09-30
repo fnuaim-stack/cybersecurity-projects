@@ -1,0 +1,31 @@
+name: Hardening Auditor Tests
+
+on:
+  push:
+    paths:
+      - "system-hardening-auditor/**"
+      - "pentest-workbench/**"
+      - ".github/workflows/hardening-auditor-tests.yml"
+  pull_request:
+    paths:
+      - "system-hardening-auditor/**"
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Syntax check
+        run: python -m py_compile system-hardening-auditor/hardening_audit.py
+      - name: Unit tests
+        run: python -m unittest discover -s system-hardening-auditor/tests -v
+      - name: Workbench integration syntax
+        run: python -m py_compile pentest-workbench/app.py pentest-workbench/ptworkbench/tools.py pentest-workbench/ptworkbench/importers.py
+      - name: Smoke test auditor
+        run: python system-hardening-auditor/hardening_audit.py --format json --output temp_reports
