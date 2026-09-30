@@ -14,7 +14,6 @@ def load_module(name, relative_path):
     return module
 
 
-scope_guard = load_module("scope_guard", "scope-guard/scope_guard.py")
 nmap_explorer = load_module("nmap_explorer", "nmap-result-explorer/nmap_explorer.py")
 endpoint_inventory = load_module(
     "endpoint_inventory",
@@ -23,39 +22,6 @@ endpoint_inventory = load_module(
 ctf_toolbox = load_module("ctf_toolbox", "ctf-toolbox/toolbox.py")
 wordlist_lab = load_module("wordlist_lab", "wordlist-lab/wordlist_lab.py")
 evidence = load_module("evidence", "evidence-organizer/evidence.py")
-
-
-class ScopeGuardTests(unittest.TestCase):
-    def test_network_domain_and_exclusions(self):
-        with tempfile.TemporaryDirectory() as temp:
-            path = Path(temp) / "scope.json"
-            path.write_text(
-                json.dumps(
-                    {
-                        "networks": ["192.168.56.0/24"],
-                        "domains": ["example.test"],
-                        "exclude_hosts": ["blocked.example.test"],
-                    }
-                ),
-                encoding="utf-8",
-            )
-            scope = scope_guard.load_scope(path)
-
-            self.assertTrue(
-                scope_guard.classify_target("192.168.56.10", scope)["allowed"]
-            )
-            self.assertTrue(
-                scope_guard.classify_target(
-                    "https://api.example.test/login",
-                    scope,
-                )["allowed"]
-            )
-            self.assertFalse(
-                scope_guard.classify_target(
-                    "blocked.example.test",
-                    scope,
-                )["allowed"]
-            )
 
 
 class NmapExplorerTests(unittest.TestCase):

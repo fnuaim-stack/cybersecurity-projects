@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  python-checks:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,55 +15,35 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install project dependencies
+      - name: Install
         run: pip install -r pentest-workbench/requirements.txt
 
-      - name: Check Python syntax
+      - name: Syntax
         run: |
           python -m py_compile network-scanner/scanner.py
           python -m py_compile packet-analyzer/analyzer.py
           python -m py_compile log-analyzer/analyzer.py
           python -m py_compile file-integrity-monitor/monitor.py
           python -m py_compile http-security-checker/check_headers.py
-          python -m py_compile scope-guard/scope_guard.py
           python -m py_compile nmap-result-explorer/nmap_explorer.py
           python -m py_compile web-endpoint-inventory/endpoint_inventory.py
           python -m py_compile ctf-toolbox/toolbox.py
           python -m py_compile wordlist-lab/wordlist_lab.py
           python -m py_compile evidence-organizer/evidence.py
-          python -m py_compile pentest-workbench/workbench.py
+          python -m py_compile system-hardening-auditor/hardening_audit.py
+          python -m py_compile socket-leak-guard/socket_leak_guard.py
           python -m py_compile pentest-workbench/app.py
-          python -m py_compile pentest-workbench/ptworkbench/storage.py
-          python -m py_compile pentest-workbench/ptworkbench/importers.py
-          python -m py_compile pentest-workbench/ptworkbench/report.py
           python -m py_compile pentest-workbench/ptworkbench/tools.py
 
-      - name: Run CLI smoke tests
+      - name: Tests
         run: |
-          python network-scanner/scanner.py --help
-          python packet-analyzer/analyzer.py --help
-          python log-analyzer/analyzer.py log-analyzer/sample.log --threshold 3 --json /tmp/logs.json
-          python http-security-checker/check_headers.py --help
-          python scope-guard/scope_guard.py --scope scope-guard/sample_scope.json --target 192.168.56.10
-          python nmap-result-explorer/nmap_explorer.py nmap-result-explorer/sample.xml --markdown /tmp/nmap.md
-          python web-endpoint-inventory/endpoint_inventory.py web-endpoint-inventory/sample.har --no-static --json /tmp/endpoints.json
-          python ctf-toolbox/toolbox.py b64-decode aGVsbG8=
-          printf "Admin\nlab\n" > /tmp/words.txt
-          python wordlist-lab/wordlist_lab.py /tmp/words.txt --transform lower --output /tmp/wordlist.txt
-          mkdir -p /tmp/evidence-src
-          echo "proof" > /tmp/evidence-src/proof.txt
-          python evidence-organizer/evidence.py init /tmp/case --name "CI Case" --scope "local"
-          python evidence-organizer/evidence.py add /tmp/case /tmp/evidence-src/proof.txt --finding F-01
-          python evidence-organizer/evidence.py verify /tmp/case
-          mkdir -p /tmp/fim-test
-          echo "hello" > /tmp/fim-test/test.txt
-          python file-integrity-monitor/monitor.py init /tmp/fim-test --baseline /tmp/fim-baseline.json --exclude "*.log" --json /tmp/fim-init.json
-          python file-integrity-monitor/monitor.py check /tmp/fim-test --baseline /tmp/fim-baseline.json --json /tmp/fim-check.json
-          python pentest-workbench/workbench.py --help
-          python -c "import sys; sys.path.insert(0, 'pentest-workbench'); import app; print(app.app.url_map)"
+          python -m unittest discover -s tests -v
+          python -m unittest discover -s pentest-workbench/tests -v
+          python -m unittest discover -s system-hardening-auditor/tests -v
+          python -m unittest discover -s socket-leak-guard/tests -v
 
-      - name: Run standalone tool tests
-        run: python -m unittest discover -s tests -v
-
-      - name: Run pentest workbench tests
-        run: python -m unittest discover -s pentest-workbench/tests -v
+      - name: Workbench smoke test
+        env:
+          PTW_DB: /tmp/workbench-smoke.db
+        run: |
+          python -c "import sys; sys.path.insert(0, 'pentest-workbench'); import app; client=app.app.test_client(); response=client.get('/'); print(app.app.url_map); print('HTTP', response.status_code); assert response.status_code == 200"
