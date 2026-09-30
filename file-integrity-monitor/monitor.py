@@ -41,16 +41,18 @@ def save_baseline(folder, baseline_path):
         "folder": str(folder.resolve()),
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "files": snapshot,
+        "file_count": len(snapshot),
     }
 
     baseline_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     print(f"Baseline saved to {baseline_path}")
     print(f"Files recorded: {len(snapshot)}")
+    return data
 
 
-def check_baseline(folder, baseline_path):
+def compare_baseline(folder, baseline_path):
     if not baseline_path.exists():
-        raise SystemExit("Baseline file not found. Run init first.")
+        raise FileNotFoundError("Baseline file not found. Run init first.")
 
     baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
     old_files = baseline.get("files", {})
@@ -67,26 +69,44 @@ def check_baseline(folder, baseline_path):
         if old_files[name] != current_files[name]
     )
 
-    print(f"Checked: {folder.resolve()}")
+    return {
+        "folder": str(folder.resolve()),
+        "checked_at": datetime.now().isoformat(timespec="seconds"),
+        "added": added,
+        "modified": modified,
+        "deleted": deleted,
+        "changed_count": len(added) + len(modified) + len(deleted),
+    }
 
-    if not added and not deleted and not modified:
+
+def check_baseline(folder, baseline_path):
+    result = compare_baseline(folder, baseline_path)
+    print(f"Checked: {result['folder']}")
+
+    if result["changed_count"] == 0:
         print("No changes found.")
-        return
+        return result
 
-    if added:
+    if result["added"]:
         print("\nAdded:")
-        for name in added:
+        for name in result["added"]:
             print(f"  + {name}")
 
-    if modified:
+    if result["modified"]:
         print("\nModified:")
-        for name in modified:
+        for name in result["modified"]:
             print(f"  * {name}")
 
-    if deleted:
+    if result["deleted"]:
         print("\nDeleted:")
-        for name in deleted:
+        for name in result["deleted"]:
             print(f"  - {name}")
+
+    return result
+
+
+def write_json(path, data):
+    Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
 def main():
@@ -96,10 +116,12 @@ def main():
     init_parser = subparsers.add_parser("init", help="Create a baseline")
     init_parser.add_argument("folder", help="Folder to monitor")
     init_parser.add_argument("--baseline", default=DEFAULT_BASELINE)
+    init_parser.add_argument("--json", dest="json_path")
 
     check_parser = subparsers.add_parser("check", help="Check for file changes")
     check_parser.add_argument("folder", help="Folder to monitor")
     check_parser.add_argument("--baseline", default=DEFAULT_BASELINE)
+    check_parser.add_argument("--json", dest="json_path")
 
     args = parser.parse_args()
     folder = Path(args.folder).resolve()
@@ -108,10 +130,17 @@ def main():
     if not folder.is_dir():
         parser.error(f"Folder not found: {folder}")
 
-    if args.command == "init":
-        save_baseline(folder, baseline_path)
-    else:
-        check_baseline(folder, baseline_path)
+    try:
+        if args.command == "init":
+            result = save_baseline(folder, baseline_path)
+        else:
+            result = check_baseline(folder, baseline_path)
+    except FileNotFoundError as error:
+        parser.error(str(error))
+
+    if args.json_path:
+        write_json(args.json_path, result)
+        print(f"Saved JSON result to: {args.json_path}")
 
 
 if __name__ == "__main__":
