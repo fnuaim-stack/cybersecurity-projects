@@ -14,6 +14,7 @@ The main project is the **Pentest Workbench**. The smaller tools still work by t
 | [Packet Analyzer](./packet-analyzer/) | Live packet capture or offline PCAP analysis with protocol, DNS, port, and talker summaries |
 | [Log Analyzer](./log-analyzer/) | Parses authentication and basic web events, IPs, users, and repeated failed logins |
 | [File Integrity Monitor](./file-integrity-monitor/) | SHA-256 baselines with file metadata, excludes, and detailed change reports |
+| [System Hardening Auditor](./system-hardening-auditor/) | Read-only Windows/Linux baseline audit with JSON, Markdown, and HTML remediation reports |
 
 ## Folder structure
 
@@ -25,6 +26,7 @@ cybersecurity-projects/
 ├── packet-analyzer/
 ├── log-analyzer/
 ├── file-integrity-monitor/
+├── system-hardening-auditor/
 └── tests/
 ```
 
