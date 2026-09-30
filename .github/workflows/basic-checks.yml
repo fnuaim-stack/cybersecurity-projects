@@ -43,4 +43,7 @@ jobs:
           python -m unittest discover -s socket-leak-guard/tests -v
 
       - name: Workbench smoke test
-        run: python -c "import sys; sys.path.insert(0, 'pentest-workbench'); import app; print(app.app.url_map)"
+        env:
+          PTW_DB: /tmp/workbench-smoke.db
+        run: |
+          python -c "import sys; sys.path.insert(0, 'pentest-workbench'); import app; client=app.app.test_client(); response=client.get('/'); print(app.app.url_map); print('HTTP', response.status_code); assert response.status_code == 200"
