@@ -39,6 +39,10 @@ jobs:
           python -m py_compile exposure-management/exposure_manager/importers.py
           python -m py_compile exposure-management/exposure_manager/service.py
           python -m py_compile exposure-management/exposure_manager/reporting.py
+          python -m py_compile exposure-management/exposure_manager/analytics.py
+          python -m py_compile exposure-management/exposure_manager/intel.py
+          python -m py_compile exposure-management/exposure_manager/campaigns.py
+          python -m py_compile exposure-management/exposure_manager/integrations.py
           python -m py_compile pentest-workbench/app.py
           python -m py_compile pentest-workbench/ptworkbench/tools.py
 
