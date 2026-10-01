@@ -6,6 +6,7 @@ import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from .assets import AssetResolver
 from .database import Database
 from .importers import load_findings
 from .models import VALID_STATUSES, NormalizedFinding
@@ -31,6 +32,7 @@ def _exception_active(until: str | None) -> bool:
 class ExposureManager:
     def __init__(self, database_path: str | Path) -> None:
         self.db = Database(database_path)
+        self.assets = AssetResolver(self.db)
 
     @staticmethod
     def fingerprint(source: str, scope: str, item: NormalizedFinding) -> str:
@@ -55,6 +57,7 @@ class ExposureManager:
         source: str | None = None,
         scope: str = "default",
         verification_misses: int = 2,
+        verify_missing: bool = True,
     ) -> dict:
         if verification_misses < 1:
             raise ValueError("verification_misses must be at least 1")
@@ -76,10 +79,11 @@ class ExposureManager:
             for item in items:
                 if not item.asset.strip():
                     item.asset = "unknown"
+                item.asset = self.assets.resolve(item.asset.strip())
                 item.severity = normalize_severity(item.severity)
 
                 asset = self.db.upsert_asset(
-                    item.asset.strip(),
+                    item.asset,
                     started,
                     name=item.hostname or item.asset,
                     address=item.address,
@@ -192,14 +196,16 @@ class ExposureManager:
                     )
                     created += 1
 
-            verified = self._apply_rescan_verification(
-                source_name,
-                scope_name,
-                scan_id,
-                seen,
-                verification_misses,
-                started,
-            )
+            verified = 0
+            if verify_missing:
+                verified = self._apply_rescan_verification(
+                    source_name,
+                    scope_name,
+                    scan_id,
+                    seen,
+                    verification_misses,
+                    started,
+                )
             self.db.finish_scan(scan_id, utc_now(), len(items), "completed")
         except Exception:
             self.db.finish_scan(scan_id, utc_now(), 0, "failed")
@@ -215,6 +221,7 @@ class ExposureManager:
             "updated": updated,
             "reopened": reopened,
             "verified_resolved": verified,
+            "verification_applied": verify_missing,
         }
 
     def _apply_rescan_verification(
