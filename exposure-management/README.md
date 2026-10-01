@@ -31,7 +31,10 @@ Add asset context:
 
 ~~~bash
 python exposure.py asset-set app.example.com --criticality 5 --internet-exposed yes --owner security
+python exposure.py asset-alias app.example.com 192.0.2.10
 ~~~
+
+Bulk asset context can also be imported from CSV with `asset-import`.
 
 See MTTR, SLA, aging, recurrence, and top-risk assets:
 
@@ -62,4 +65,4 @@ Optional Jira, Slack, and generic webhook commands are available for sending fin
 
 By default the database is stored at `~/.exposure-management/exposure.db`.
 
-A finding is not considered fixed after one clean scan. By default it must be absent from two complete scans from the same source and scope before it is verified resolved.
+A finding is not considered fixed after one clean scan. By default it must be absent from two complete scans from the same source and scope before it is verified resolved. Use `--partial` when importing incomplete scan results so missing findings are not counted as fixed.
