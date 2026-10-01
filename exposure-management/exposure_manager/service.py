@@ -59,6 +59,7 @@ class ExposureManager:
         if verification_misses < 1:
             raise ValueError("verification_misses must be at least 1")
 
+        self.expire_risk_exceptions()
         selected_format, items = load_findings(path, fmt)
         source_name = (source or selected_format).strip().lower()
         scope_name = scope.strip() or "default"
@@ -381,7 +382,30 @@ class ExposureManager:
         )
         return self.db.get_finding(finding_id) or {}
 
+    def expire_risk_exceptions(self) -> int:
+        now = utc_now()
+        expired = 0
+        for finding in self.db.list_findings(status="accepted_risk", limit=5000):
+            if _exception_active(finding["exception_until"]):
+                continue
+            self.db.update_finding(
+                int(finding["id"]),
+                {
+                    "status": "open",
+                    "verified_at": None,
+                },
+            )
+            self.db.add_history(
+                int(finding["id"]),
+                now,
+                "risk_exception_expired",
+                f"Risk exception expired on {finding['exception_until'] or 'unknown date'}",
+            )
+            expired += 1
+        return expired
+
     def remediation_queue(self, limit: int = 100) -> list[dict]:
+        self.expire_risk_exceptions()
         now = utc_now()
         findings = self.db.list_findings(limit=5000)
         queue = []
