@@ -67,6 +67,8 @@ def detect_format(path: str | Path) -> str:
     path = Path(path)
     suffix = path.suffix.lower()
 
+    if suffix == ".nessus":
+        return "nessus"
     if suffix == ".xml":
         return "nmap"
     if suffix == ".sarif":
@@ -105,6 +107,11 @@ def detect_format(path: str | Path) -> str:
                 return "sarif"
             if "template-id" in data or "templateID" in data:
                 return "nuclei"
+            if isinstance(data.get("site"), list):
+                return "zap"
+            results = data.get("results")
+            if isinstance(results, list) and results and isinstance(results[0], dict) and "check_id" in results[0]:
+                return "semgrep"
         return "generic"
 
     return "generic"
@@ -118,8 +125,11 @@ def load_findings(path: str | Path, fmt: str = "auto") -> tuple[str, list[Normal
         "nuclei": load_nuclei,
         "trivy": load_trivy,
         "nmap": load_nmap,
+        "nessus": load_nessus,
         "openvas-csv": load_openvas_csv,
         "sarif": load_sarif,
+        "zap": load_zap,
+        "semgrep": load_semgrep,
         "generic": load_generic,
     }
     if selected not in loaders:
@@ -370,6 +380,137 @@ def load_sarif(path: Path) -> list[NormalizedFinding]:
                     },
                 )
             )
+    return items
+
+
+def load_nessus(path: Path) -> list[NormalizedFinding]:
+    root = ET.parse(path).getroot()
+    items: list[NormalizedFinding] = []
+    severity_map = {"0": "info", "1": "low", "2": "medium", "3": "high", "4": "critical"}
+
+    for host in root.findall(".//ReportHost"):
+        props = {}
+        properties = host.find("HostProperties")
+        if properties is not None:
+            for tag in properties.findall("tag"):
+                name = tag.attrib.get("name", "")
+                if name:
+                    props[name] = tag.text or ""
+
+        hostname = props.get("host-fqdn") or props.get("hostname") or host.attrib.get("name", "")
+        address = props.get("host-ip") or host.attrib.get("name", "")
+        asset = hostname or address or "unknown"
+
+        for node in host.findall("ReportItem"):
+            plugin_id = str(node.attrib.get("pluginID") or "")
+            severity = severity_map.get(str(node.attrib.get("severity") or "0"), "info")
+            port = _int(node.attrib.get("port"))
+            protocol = str(node.attrib.get("protocol") or "")
+            service = str(node.attrib.get("svc_name") or "")
+            cves = [part.strip().upper() for part in str(node.findtext("cve") or "").split(",") if part.strip()]
+
+            items.append(
+                NormalizedFinding(
+                    asset=asset,
+                    title=str(node.attrib.get("pluginName") or f"Nessus plugin {plugin_id}"),
+                    severity=severity,
+                    external_id=plugin_id,
+                    description=str(node.findtext("synopsis") or node.findtext("description") or ""),
+                    remediation=str(node.findtext("solution") or ""),
+                    address=address,
+                    hostname=hostname,
+                    port=port,
+                    protocol=protocol,
+                    service=service,
+                    cvss=_float(node.findtext("cvss3_base_score") or node.findtext("cvss_base_score")),
+                    exploit_available=_bool(node.findtext("exploit_available")),
+                    metadata={
+                        "plugin_family": node.attrib.get("pluginFamily"),
+                        "cves": cves,
+                        "risk_factor": node.findtext("risk_factor"),
+                        "plugin_output": node.findtext("plugin_output"),
+                    },
+                )
+            )
+    return items
+
+
+def load_zap(path: Path) -> list[NormalizedFinding]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    sites = data.get("site") or []
+    items: list[NormalizedFinding] = []
+    severity_map = {"0": "info", "1": "low", "2": "medium", "3": "high"}
+
+    for site in sites:
+        site_name = str(site.get("@name") or site.get("name") or "unknown")
+        parsed = urlparse(site_name) if "://" in site_name else None
+        hostname = parsed.hostname if parsed else site_name
+        port = parsed.port if parsed else None
+
+        for alert in site.get("alerts") or []:
+            riskcode = str(alert.get("riskcode") or alert.get("risk") or "0").split()[0]
+            instances = alert.get("instances") or []
+            first_uri = ""
+            if instances and isinstance(instances[0], dict):
+                first_uri = str(instances[0].get("uri") or "")
+            target = first_uri or site_name
+            asset, _, instance_host, instance_port = _target_parts(target)
+
+            items.append(
+                NormalizedFinding(
+                    asset=asset,
+                    title=str(alert.get("alert") or alert.get("name") or "ZAP alert"),
+                    severity=severity_map.get(riskcode, "medium"),
+                    external_id=str(alert.get("pluginid") or alert.get("alertRef") or ""),
+                    description=str(alert.get("desc") or alert.get("description") or ""),
+                    remediation=str(alert.get("solution") or ""),
+                    hostname=instance_host or hostname or "",
+                    port=instance_port or port,
+                    protocol="http",
+                    service="web",
+                    metadata={
+                        "confidence": alert.get("confidence"),
+                        "cweid": alert.get("cweid"),
+                        "wascid": alert.get("wascid"),
+                        "reference": alert.get("reference"),
+                        "instances": instances[:20],
+                    },
+                )
+            )
+    return items
+
+
+def load_semgrep(path: Path) -> list[NormalizedFinding]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    items: list[NormalizedFinding] = []
+    severity_map = {"ERROR": "high", "WARNING": "medium", "INFO": "low"}
+
+    for result in data.get("results") or []:
+        extra = result.get("extra") or {}
+        check_id = str(result.get("check_id") or "")
+        path_value = str(result.get("path") or "repository")
+        message = str(extra.get("message") or "")
+        severity = severity_map.get(str(extra.get("severity") or "WARNING").upper(), "medium")
+        start = result.get("start") or {}
+        end = result.get("end") or {}
+
+        items.append(
+            NormalizedFinding(
+                asset=path_value,
+                title=check_id or message or "Semgrep finding",
+                severity=severity,
+                external_id=check_id,
+                description=message,
+                remediation=str(extra.get("fix") or ""),
+                metadata={
+                    "path": path_value,
+                    "start_line": start.get("line"),
+                    "end_line": end.get("line"),
+                    "metadata": extra.get("metadata") or {},
+                    "metavars": extra.get("metavars") or {},
+                },
+            )
+        )
     return items
 
 
