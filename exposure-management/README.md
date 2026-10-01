@@ -16,12 +16,23 @@ It keeps an asset inventory, removes duplicate findings, adds asset context to r
 - SARIF
 - Generic JSON, JSONL, or CSV
 
-## Run
+## Run the UI
 
-No extra Python packages are required.
+On Windows:
+
+~~~powershell
+cd exposure-management
+py -m pip install -r requirements.txt
+py webapp.py
+~~~
+
+The browser opens at `http://127.0.0.1:5055`.
+
+For a quick test, import `samples/demo_findings.json` from the **Import scans** page and choose `generic`.
+
+## CLI
 
 ~~~bash
-cd exposure-management
 python exposure.py import scan.jsonl --format nuclei --scope prod
 python exposure.py summary
 python exposure.py queue
