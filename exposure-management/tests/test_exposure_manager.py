@@ -106,6 +106,12 @@ class ExposureManagerTests(unittest.TestCase):
         self.assertEqual(self.manager.db.get_finding(finding_id)["status"], "accepted_risk")
         self.assertEqual(self.manager.remediation_queue(), [])
 
+        self.manager.db.update_finding(finding_id, {"exception_until": "2000-01-01"})
+        queue = self.manager.remediation_queue()
+        self.assertEqual(queue[0]["status"], "open")
+        actions = [item["action"] for item in self.manager.db.history(finding_id)]
+        self.assertIn("risk_exception_expired", actions)
+
     def test_nuclei_jsonl_import(self):
         path = self.root / "nuclei.jsonl"
         path.write_text(
@@ -132,6 +138,27 @@ class ExposureManagerTests(unittest.TestCase):
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0].asset, "app.example.test")
         self.assertEqual(findings[0].port, 443)
+
+    def test_pretty_nuclei_json_import(self):
+        path = self.root / "nuclei.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "template-id": "tls-version",
+                    "host": "https://gateway.example.test",
+                    "info": {
+                        "name": "Legacy TLS version",
+                        "severity": "medium",
+                    },
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        selected, findings = load_findings(path, "auto")
+        self.assertEqual(selected, "nuclei")
+        self.assertEqual(findings[0].asset, "gateway.example.test")
 
     def test_trivy_import(self):
         scan = self.write_json(
