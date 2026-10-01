@@ -3,9 +3,10 @@ from __future__ import annotations
 import csv
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
-from .scoring import calculate_risk
+from .scoring import calculate_risk, due_date
 
 
 CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,7}\b", re.IGNORECASE)
@@ -135,18 +136,24 @@ def enrich_findings(db, *, kev_path: str | Path | None = None, epss_path: str | 
             score = min(score, 100)
             band = _band(score)
 
+        candidate_due = due_date(finding["first_seen"], band)
+        current_due = finding.get("due_at")
+        if current_due and current_due < candidate_due:
+            candidate_due = current_due
+
         db.update_finding(
             int(finding["id"]),
             {
                 "known_exploited": int(bool(matched_kev) or bool(finding["known_exploited"])),
                 "risk_score": score,
                 "risk_band": band,
+                "due_at": candidate_due,
                 "metadata_json": db.metadata_json(metadata),
             },
         )
         db.add_history(
             int(finding["id"]),
-            __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+            datetime.now(timezone.utc).isoformat(),
             "threat_intel_enriched",
             f"KEV={bool(matched_kev)} EPSS={max_epss if max_epss is not None else 'n/a'}",
         )
