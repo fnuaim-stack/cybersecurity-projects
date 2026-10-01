@@ -86,6 +86,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=2,
         help="Consecutive complete scans that must miss a finding before it is verified resolved",
     )
+    imp.add_argument(
+        "--partial",
+        action="store_true",
+        help="Import results without treating missing findings as remediation evidence",
+    )
 
     summary = sub.add_parser("summary", help="Show current exposure summary")
     summary.add_argument("--json", action="store_true")
@@ -118,6 +123,16 @@ def build_parser() -> argparse.ArgumentParser:
     asset_set.add_argument("--internet-exposed", type=yes_no)
     asset_set.add_argument("--owner")
     asset_set.add_argument("--environment")
+
+    asset_alias = sub.add_parser("asset-alias", help="Map another hostname/IP/name to an existing asset")
+    asset_alias.add_argument("asset")
+    asset_alias.add_argument("alias")
+
+    asset_aliases = sub.add_parser("asset-aliases", help="List asset aliases")
+    asset_aliases.add_argument("--json", action="store_true")
+
+    asset_import = sub.add_parser("asset-import", help="Bulk import asset context from CSV")
+    asset_import.add_argument("path")
 
     finding_set = sub.add_parser("finding-set", help="Update finding workflow state")
     finding_set.add_argument("id", type=int)
@@ -194,6 +209,7 @@ def main() -> int:
             source=args.source,
             scope=args.scope,
             verification_misses=args.verify_misses,
+            verify_missing=not args.partial,
         )
         print(json.dumps(result, indent=2))
         return 0
@@ -298,6 +314,23 @@ def main() -> int:
             environment=args.environment,
         )
         print(json.dumps(result, indent=2, default=str))
+        return 0
+
+    if args.command == "asset-alias":
+        print(json.dumps(manager.assets.add_alias(args.asset, args.alias), indent=2))
+        return 0
+
+    if args.command == "asset-aliases":
+        rows = manager.assets.list_aliases()
+        if args.json:
+            print(json.dumps(rows, indent=2, default=str))
+        else:
+            print_rows(rows, [("alias", "Alias"), ("asset_key", "Asset"), ("created_at", "Created")])
+        return 0
+
+    if args.command == "asset-import":
+        result = manager.assets.import_context_csv(args.path)
+        print(json.dumps(result, indent=2))
         return 0
 
     if args.command == "finding-set":
