@@ -19,6 +19,6 @@ Then open:
 http://127.0.0.1:5000
 ```
 
-The repo includes things like network scanning, packet analysis, log checking, file integrity, system hardening, CTF helpers, evidence organization, and socket leak checking.
+The repo includes things like network scanning, packet analysis, log checking, file integrity, system hardening, exposure management, CTF helpers, evidence organization, and socket leak checking.
 
 try to have permission before using them (Not like they do anything serious anyway but be careful)
