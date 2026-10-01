@@ -1,0 +1,37 @@
+[
+  {
+    "asset": "vpn.example.test",
+    "title": "Outdated VPN service",
+    "external_id": "CVE-2026-1001",
+    "severity": "critical",
+    "cvss": 9.8,
+    "port": 443,
+    "protocol": "tcp",
+    "service": "https",
+    "description": "Example internet-facing VPN finding for testing the local UI.",
+    "remediation": "Upgrade the VPN service to a supported patched version.",
+    "exploit_available": true
+  },
+  {
+    "asset": "app.example.test",
+    "title": "Missing security header",
+    "external_id": "WEB-HEADER-001",
+    "severity": "medium",
+    "port": 443,
+    "protocol": "tcp",
+    "service": "https",
+    "description": "Example web configuration finding.",
+    "remediation": "Add the missing response security header."
+  },
+  {
+    "asset": "db.example.test",
+    "title": "Legacy database protocol",
+    "external_id": "DB-CONFIG-004",
+    "severity": "high",
+    "port": 5432,
+    "protocol": "tcp",
+    "service": "postgresql",
+    "description": "Example internal database finding.",
+    "remediation": "Disable the legacy protocol after compatibility testing."
+  }
+]

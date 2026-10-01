@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Analytics · Exposure Management{% endblock %}
+{% block heading %}Analytics{% endblock %}
+{% block eyebrow %}Remediation performance{% endblock %}
+{% block content %}
+<section class="metric-grid">
+  <article class="metric"><span>Active</span><strong>{{ analytics.active_findings }}</strong></article>
+  <article class="metric"><span>Resolved</span><strong>{{ analytics.resolved_findings }}</strong></article>
+  <article class="metric"><span>SLA compliance</span><strong>{{ analytics.sla_compliance_percent if analytics.sla_compliance_percent is not none else '—' }}{% if analytics.sla_compliance_percent is not none %}%{% endif %}</strong></article>
+  <article class="metric"><span>Avg. MTTR</span><strong>{{ analytics.mttr_hours.average if analytics.mttr_hours.average is not none else '—' }}{% if analytics.mttr_hours.average is not none %}h{% endif %}</strong></article>
+</section>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>Finding age</h2>
+    <div class="bar-list">
+      {% set total = analytics.active_findings if analytics.active_findings else 1 %}
+      {% for label, value in analytics.age_buckets.items() %}
+      <div class="bar-row"><span>{{ label }}</span><div><i style="width: {{ (value / total * 100)|round(1) }}%"></i></div><strong>{{ value }}</strong></div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Recurrence</h2>
+    <div class="stat-list">
+      <div><span>Findings that came back</span><strong>{{ analytics.recurrence.findings_that_recurred }}</strong></div>
+      <div><span>Total reopen events</span><strong>{{ analytics.recurrence.reopened_events }}</strong></div>
+      <div><span>Overdue active</span><strong>{{ analytics.overdue_active }}</strong></div>
+      <div><span>MTTR samples</span><strong>{{ analytics.mttr_hours.count }}</strong></div>
+    </div>
+  </section>
+</div>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>Top assets by risk</h2>
+    <div class="rank-list">{% for item in analytics.top_assets_by_risk %}<div><span class="mono">{{ item.asset }}</span><strong>{{ item.aggregate_risk }}</strong></div>{% else %}<p class="empty">No active asset risk yet.</p>{% endfor %}</div>
+  </section>
+  <section class="panel">
+    <h2>Active findings by owner</h2>
+    <div class="rank-list">{% for owner, count in analytics.active_by_owner.items() %}<div><span>{{ owner }}</span><strong>{{ count }}</strong></div>{% else %}<p class="empty">No active findings.</p>{% endfor %}</div>
+  </section>
+</div>
+{% endblock %}

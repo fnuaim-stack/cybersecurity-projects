@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Exposure Management{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+{% block eyebrow %}Current posture{% endblock %}
+{% block content %}
+<section class="metric-grid">
+  <article class="metric"><span>Active findings</span><strong>{{ summary.active }}</strong><small>{{ summary.findings }} total</small></article>
+  <article class="metric"><span>Critical / high</span><strong>{{ summary.active_by_risk.get('critical', 0) + summary.active_by_risk.get('high', 0) }}</strong><small>needs attention</small></article>
+  <article class="metric"><span>Overdue</span><strong>{{ summary.overdue }}</strong><small>past SLA</small></article>
+  <article class="metric"><span>Assets</span><strong>{{ summary.assets }}</strong><small>known assets</small></article>
+</section>
+
+<div class="two-col">
+  <section class="panel">
+    <div class="panel-head"><div><h2>Priority queue</h2><p>Highest-risk work first.</p></div><a href="{{ url_for('findings') }}">View all</a></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Risk</th><th>Asset</th><th>Finding</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for item in queue %}
+          <tr>
+            <td><span class="risk risk-{{ item.risk_band }}">{{ item.risk_score }}</span></td>
+            <td class="mono">{{ item.asset_key }}</td>
+            <td><a href="{{ url_for('finding_detail', finding_id=item.id) }}">{{ item.title }}</a></td>
+            <td><span class="status">{{ item.status.replace('_', ' ') }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty">No active findings yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Operations</h2><p>Quick health numbers.</p></div></div>
+    <div class="stat-list">
+      <div><span>SLA compliance</span><strong>{{ analytics.sla_compliance_percent if analytics.sla_compliance_percent is not none else '—' }}{% if analytics.sla_compliance_percent is not none %}%{% endif %}</strong></div>
+      <div><span>Average MTTR</span><strong>{{ analytics.mttr_hours.average if analytics.mttr_hours.average is not none else '—' }}{% if analytics.mttr_hours.average is not none %} h{% endif %}</strong></div>
+      <div><span>Recurring findings</span><strong>{{ analytics.recurrence.findings_that_recurred }}</strong></div>
+      <div><span>Older than 90 days</span><strong>{{ analytics.age_buckets['90d+'] }}</strong></div>
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Recent scans</h2><p>Latest imported scanner results.</p></div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Source</th><th>Scope</th><th>Imported</th><th>Status</th><th>Started</th></tr></thead>
+      <tbody>
+        {% for scan in scans %}
+        <tr><td>{{ scan.source }}</td><td>{{ scan.scope }}</td><td>{{ scan.imported_count }}</td><td>{{ scan.status }}</td><td class="mono">{{ scan.started_at[:19].replace('T', ' ') }}</td></tr>
+        {% else %}
+        <tr><td colspan="5" class="empty">Import your first scan to populate the dashboard.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

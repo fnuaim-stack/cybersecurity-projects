@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Assets · Exposure Management{% endblock %}
+{% block heading %}Assets{% endblock %}
+{% block eyebrow %}Business context{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head"><div><h2>Asset inventory</h2><p>Criticality and exposure directly affect prioritization.</p></div></div>
+  <div class="asset-grid">
+    {% for asset in assets %}
+    <article class="asset-card">
+      <div class="asset-title"><div><strong>{{ asset.asset_key }}</strong><span>{{ asset.active_findings }} active / {{ asset.finding_count }} total</span></div><span class="pill">C{{ asset.criticality }}</span></div>
+      <form method="post" action="{{ url_for('asset_update') }}" class="form-grid compact">
+        <input type="hidden" name="asset" value="{{ asset.asset_key }}">
+        <label>Criticality<select name="criticality">{% for value in range(1,6) %}<option value="{{ value }}" {{ 'selected' if asset.criticality == value else '' }}>{{ value }}</option>{% endfor %}</select></label>
+        <label>Environment<input name="environment" value="{{ asset.environment }}"></label>
+        <label>Owner<input name="owner" value="{{ asset.owner }}"></label>
+        <label class="check"><input type="checkbox" name="internet_exposed" {{ 'checked' if asset.internet_exposed else '' }}> Internet exposed</label>
+        <div class="wide"><button class="button secondary small" type="submit">Save asset</button></div>
+      </form>
+    </article>
+    {% else %}
+    <p class="empty">No assets yet. Import a scan first.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Asset aliases</h2><p>Map an IP or alternate hostname to the same asset.</p></div></div>
+  <form method="post" action="{{ url_for('asset_alias') }}" class="filters">
+    <select name="asset" required><option value="">Choose asset</option>{% for asset in assets %}<option value="{{ asset.asset_key }}">{{ asset.asset_key }}</option>{% endfor %}</select>
+    <input name="alias" placeholder="192.0.2.10 or alternate hostname" required>
+    <button class="button" type="submit">Add alias</button>
+  </form>
+  <div class="chip-row">
+    {% for item in aliases %}<span class="chip"><strong>{{ item.alias }}</strong> → {{ item.asset_key }}</span>{% else %}<span class="muted">No aliases configured.</span>{% endfor %}
+  </div>
+</section>
+{% endblock %}
