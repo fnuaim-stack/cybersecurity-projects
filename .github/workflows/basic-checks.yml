@@ -16,7 +16,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        run: pip install -r pentest-workbench/requirements.txt
+        run: |
+          pip install -r pentest-workbench/requirements.txt
+          pip install -r exposure-management/requirements.txt
 
       - name: Syntax
         run: |
@@ -33,6 +35,7 @@ jobs:
           python -m py_compile system-hardening-auditor/hardening_audit.py
           python -m py_compile socket-leak-guard/socket_leak_guard.py
           python -m py_compile exposure-management/exposure.py
+          python -m py_compile exposure-management/webapp.py
           python -m py_compile exposure-management/exposure_manager/models.py
           python -m py_compile exposure-management/exposure_manager/scoring.py
           python -m py_compile exposure-management/exposure_manager/database.py
