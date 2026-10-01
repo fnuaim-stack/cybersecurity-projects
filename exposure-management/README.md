@@ -1,15 +1,18 @@
 # Exposure Management
 
-This project turns scanner results into a remediation queue instead of leaving them as separate files.
+This project turns scanner results into one remediation workflow.
 
-It keeps an asset inventory, removes duplicate findings, adds asset context to risk, tracks owners and status, applies remediation due dates, and verifies fixes across rescans.
+It keeps an asset inventory, removes duplicate findings, adds asset context to risk, tracks owners and due dates, verifies fixes across rescans, and shows which work should be handled first.
 
 ## Supported imports
 
-- Nuclei JSON/JSONL
-- Trivy JSON
-- Nmap XML
-- OpenVAS CSV
+- Nuclei
+- Trivy
+- Nmap
+- Nessus
+- OpenVAS
+- OWASP ZAP
+- Semgrep
 - SARIF
 - Generic JSON, JSONL, or CSV
 
@@ -24,30 +27,39 @@ python exposure.py summary
 python exposure.py queue
 ~~~
 
-Set asset context:
+Add asset context:
 
 ~~~bash
 python exposure.py asset-set app.example.com --criticality 5 --internet-exposed yes --owner security
 ~~~
 
-Update a finding:
+See MTTR, SLA, aging, recurrence, and top-risk assets:
 
 ~~~bash
-python exposure.py finding-set 12 --status in_progress --owner faisal
+python exposure.py analytics
 ~~~
 
-Accept a risk for a limited time:
+Enrich CVE findings with local CISA KEV and EPSS files:
 
 ~~~bash
-python exposure.py accept-risk 12 --until 2026-12-31 --reason "Upgrade is scheduled"
+python exposure.py intel-enrich --kev kev.json --epss epss.csv
 ~~~
 
-Export a report:
+Create a remediation campaign:
+
+~~~bash
+python exposure.py campaign-create "Critical fixes" --min-risk 90 --owner security
+python exposure.py campaigns
+~~~
+
+Export the queue:
 
 ~~~bash
 python exposure.py report --format markdown --output report.md
 ~~~
 
-By default the database is stored at `~/.exposure-management/exposure.db`. Use `--db` if you want another location.
+Optional Jira, Slack, and generic webhook commands are available for sending findings to other systems. Secrets are read from environment variables.
 
-A finding is not automatically considered fixed after one clean scan. By default it must be absent from two complete scans from the same source and scope before it is marked resolved.
+By default the database is stored at `~/.exposure-management/exposure.db`.
+
+A finding is not considered fixed after one clean scan. By default it must be absent from two complete scans from the same source and scope before it is verified resolved.
