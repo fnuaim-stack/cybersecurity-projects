@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Threat intel · Exposure Management{% endblock %}
+{% block heading %}Threat intelligence{% endblock %}
+{% block eyebrow %}KEV and EPSS enrichment{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <div class="panel-head"><div><h2>Enrich existing CVE findings</h2><p>Upload local CISA KEV JSON and/or EPSS CSV files. Nothing is downloaded automatically.</p></div></div>
+  <form method="post" enctype="multipart/form-data" class="form-stack">
+    <label>CISA KEV JSON<input type="file" name="kev_file" accept=".json"></label>
+    <label>EPSS CSV<input type="file" name="epss_file" accept=".csv"></label>
+    <button class="button" type="submit">Enrich findings</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Campaigns · Exposure Management{% endblock %}
+{% block heading %}Remediation campaigns{% endblock %}
+{% block eyebrow %}Organize the work{% endblock %}
+{% block content %}
+<div class="two-col campaigns-layout">
+  <section class="panel">
+    <div class="panel-head"><div><h2>Campaigns</h2><p>Group active findings into focused remediation work.</p></div></div>
+    <div class="card-list">
+      {% for item in campaigns %}
+      <a class="campaign-row" href="{{ url_for('campaign_detail', campaign_id=item.id) }}">
+        <div><strong>{{ item.name }}</strong><span>{{ item.owner or 'Unassigned' }} · {{ item.finding_count }} findings</span></div>
+        <div class="campaign-stats"><span>{{ item.active_findings }} active</span><span class="status">{{ item.status.replace('_',' ') }}</span></div>
+      </a>
+      {% else %}
+      <p class="empty">No campaigns yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Create campaign</h2>
+    <form method="post" class="form-stack">
+      <label>Name<input name="name" required placeholder="Critical internet-facing fixes"></label>
+      <label>Owner<input name="owner" placeholder="security"></label>
+      <label>Due date<input name="due_at" type="date"></label>
+      <label>Minimum risk<input name="min_risk" type="number" min="0" max="100" placeholder="70"></label>
+      <label>Severity<select name="severity"><option value="">Any severity</option>{% for value in ['critical','high','medium','low','info'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></label>
+      <label>Source<input name="source" placeholder="optional"></label>
+      <label>Finding owner<input name="finding_owner" placeholder="optional"></label>
+      <label>Notes<textarea name="notes" rows="3"></textarea></label>
+      <button class="button" type="submit">Create campaign</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

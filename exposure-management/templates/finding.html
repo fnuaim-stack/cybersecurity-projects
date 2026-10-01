@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Finding {{ finding.id }} · Exposure Management{% endblock %}
+{% block heading %}{{ finding.title }}{% endblock %}
+{% block eyebrow %}Finding #{{ finding.id }} · {{ finding.asset_key }}{% endblock %}
+{% block content %}
+<section class="detail-grid">
+  <article class="panel">
+    <div class="finding-summary">
+      <div><span>Risk</span><strong class="risk risk-{{ finding.risk_band }}">{{ finding.risk_score }}</strong></div>
+      <div><span>Severity</span><strong>{{ finding.severity }}</strong></div>
+      <div><span>Status</span><strong>{{ finding.status.replace('_',' ') }}</strong></div>
+      <div><span>Source</span><strong>{{ finding.source }}</strong></div>
+    </div>
+    <hr>
+    <dl class="detail-list">
+      <div><dt>Asset</dt><dd class="mono">{{ finding.asset_key }}</dd></div>
+      <div><dt>External ID</dt><dd>{{ finding.external_id or '—' }}</dd></div>
+      <div><dt>Port / service</dt><dd>{{ finding.port or '—' }} {{ finding.protocol }} {{ finding.service }}</dd></div>
+      <div><dt>First seen</dt><dd class="mono">{{ finding.first_seen }}</dd></div>
+      <div><dt>Last seen</dt><dd class="mono">{{ finding.last_seen }}</dd></div>
+      <div><dt>Due</dt><dd class="mono">{{ finding.due_at or '—' }}</dd></div>
+    </dl>
+    <h3>Description</h3><p class="prose">{{ finding.description or 'No description provided.' }}</p>
+    <h3>Remediation</h3><p class="prose">{{ finding.remediation or 'Review and remediate the finding.' }}</p>
+  </article>
+
+  <aside class="stack">
+    <section class="panel">
+      <h2>Update</h2>
+      <form method="post" action="{{ url_for('finding_update', finding_id=finding.id) }}" class="form-stack">
+        <label>Status<select name="status">{% for value in valid_statuses if value != 'accepted_risk' %}<option value="{{ value }}" {{ 'selected' if finding.status == value else '' }}>{{ value.replace('_',' ') }}</option>{% endfor %}</select></label>
+        <label>Owner<input name="owner" value="{{ finding.owner or '' }}" placeholder="team or person"></label>
+        <button class="button" type="submit">Save</button>
+      </form>
+    </section>
+    <section class="panel">
+      <h2>Accept risk</h2>
+      <form method="post" action="{{ url_for('finding_accept_risk', finding_id=finding.id) }}" class="form-stack">
+        <label>Until<input type="date" name="until" required></label>
+        <label>Reason<textarea name="reason" rows="3" required></textarea></label>
+        <button class="button secondary" type="submit">Save exception</button>
+      </form>
+    </section>
+  </aside>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>History</h2><p>Lifecycle events for this finding.</p></div></div>
+  <div class="timeline">
+    {% for item in finding.history|reverse %}
+    <div class="timeline-item"><span></span><div><strong>{{ item.action.replace('_',' ') }}</strong><p>{{ item.details or '—' }}</p><small>{{ item.timestamp }}</small></div></div>
+    {% else %}
+    <p class="empty">No history yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

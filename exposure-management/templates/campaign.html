@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.name }} · Exposure Management{% endblock %}
+{% block heading %}{{ campaign.name }}{% endblock %}
+{% block eyebrow %}Remediation campaign{% endblock %}
+{% block content %}
+<section class="metric-grid compact-metrics">
+  <article class="metric"><span>Total</span><strong>{{ campaign.finding_count }}</strong></article>
+  <article class="metric"><span>Active</span><strong>{{ campaign.active_findings }}</strong></article>
+  <article class="metric"><span>Resolved</span><strong>{{ campaign.resolved_findings }}</strong></article>
+  <article class="metric"><span>Status</span><strong class="small-text">{{ campaign.status.replace('_',' ') }}</strong></article>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <div><h2>Campaign findings</h2><p>{{ campaign.owner or 'Unassigned' }}{% if campaign.due_at %} · due {{ campaign.due_at }}{% endif %}</p></div>
+    <form method="post" action="{{ url_for('campaign_sync', campaign_id=campaign.id) }}"><button class="button secondary small">Refresh status</button></form>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Risk</th><th>Asset</th><th>Finding</th><th>Status</th><th>Owner</th></tr></thead>
+      <tbody>
+        {% for item in campaign.findings %}
+        <tr><td><span class="risk risk-{{ item.risk_band }}">{{ item.risk_score }}</span></td><td class="mono">{{ item.asset_key }}</td><td><a href="{{ url_for('finding_detail', finding_id=item.id) }}">{{ item.title }}</a></td><td>{{ item.status.replace('_',' ') }}</td><td>{{ item.owner or '—' }}</td></tr>
+        {% else %}
+        <tr><td colspan="5" class="empty">This campaign has no findings.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

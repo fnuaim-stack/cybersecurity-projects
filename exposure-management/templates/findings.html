@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Findings · Exposure Management{% endblock %}
+{% block heading %}Findings{% endblock %}
+{% block eyebrow %}Remediation queue{% endblock %}
+{% block content %}
+<section class="panel">
+  <form method="get" class="filters">
+    <select name="status"><option value="">All statuses</option>{% for value in valid_statuses %}<option value="{{ value }}" {{ 'selected' if filters.status == value else '' }}>{{ value.replace('_',' ') }}</option>{% endfor %}</select>
+    <select name="severity"><option value="">All severities</option>{% for value in ['critical','high','medium','low','info'] %}<option value="{{ value }}" {{ 'selected' if filters.severity == value else '' }}>{{ value }}</option>{% endfor %}</select>
+    <input name="source" value="{{ filters.source or '' }}" placeholder="Source">
+    <input name="owner" value="{{ filters.owner or '' }}" placeholder="Owner">
+    <input name="min_risk" value="{{ min_risk }}" type="number" min="0" max="100" placeholder="Min risk">
+    <button class="button secondary" type="submit">Filter</button>
+    <a class="button ghost" href="{{ url_for('findings') }}">Clear</a>
+  </form>
+  <div class="table-wrap">
+    <table class="wide-table">
+      <thead><tr><th>Risk</th><th>Asset</th><th>Finding</th><th>Source</th><th>Status</th><th>Owner</th><th>Due</th></tr></thead>
+      <tbody>
+        {% for item in findings %}
+        <tr>
+          <td><span class="risk risk-{{ item.risk_band }}">{{ item.risk_score }}</span></td>
+          <td class="mono">{{ item.asset_key }}</td>
+          <td><a href="{{ url_for('finding_detail', finding_id=item.id) }}"><strong>{{ item.title }}</strong></a><small class="subline">{{ item.external_id or item.severity }}</small></td>
+          <td>{{ item.source }}</td>
+          <td><span class="status">{{ item.status.replace('_',' ') }}</span></td>
+          <td>{{ item.owner or item.asset_owner or 'Unassigned' }}</td>
+          <td class="mono">{{ item.due_at[:10] if item.due_at else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty">No findings match the current filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

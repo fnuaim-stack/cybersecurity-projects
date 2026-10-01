@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Exposure Management{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">EM</div>
+        <div>
+          <strong>Exposure Management</strong>
+          <span>Local workspace</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="{{ 'active' if page == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a class="{{ 'active' if page == 'import' else '' }}" href="{{ url_for('import_scan') }}">Import scans</a>
+        <a class="{{ 'active' if page == 'findings' else '' }}" href="{{ url_for('findings') }}">Findings</a>
+        <a class="{{ 'active' if page == 'assets' else '' }}" href="{{ url_for('assets') }}">Assets</a>
+        <a class="{{ 'active' if page == 'campaigns' else '' }}" href="{{ url_for('campaign_list') }}">Campaigns</a>
+        <a class="{{ 'active' if page == 'analytics' else '' }}" href="{{ url_for('analytics') }}">Analytics</a>
+        <a class="{{ 'active' if page == 'intel' else '' }}" href="{{ url_for('intel') }}">Threat intel</a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span>Database</span>
+        <code title="{{ database_path }}">{{ database_path }}</code>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">{% block eyebrow %}Exposure Management{% endblock %}</p>
+          <h1>{% block heading %}Dashboard{% endblock %}</h1>
+        </div>
+        <div class="top-actions">
+          <a class="button secondary" href="{{ url_for('download_report', report_format='csv') }}">Export CSV</a>
+          <a class="button" href="{{ url_for('import_scan') }}">Import scan</a>
+        </div>
+      </header>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="messages">
+            {% for category, message in messages %}
+              <div class="message {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>
