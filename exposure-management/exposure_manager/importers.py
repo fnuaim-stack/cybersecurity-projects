@@ -135,12 +135,12 @@ def load_nuclei(path: Path) -> list[NormalizedFinding]:
     if not stripped:
         return []
 
-    if stripped.startswith("["):
-        raw_items = json.loads(stripped)
-    elif stripped.startswith("{") and "\n" not in stripped:
-        raw_items = [json.loads(stripped)]
-    else:
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
         raw_items = [json.loads(line) for line in text.splitlines() if line.strip()]
+    else:
+        raw_items = parsed if isinstance(parsed, list) else [parsed]
 
     for item in raw_items:
         info = item.get("info") or {}
