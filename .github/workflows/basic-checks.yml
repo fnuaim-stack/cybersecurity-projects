@@ -32,6 +32,13 @@ jobs:
           python -m py_compile evidence-organizer/evidence.py
           python -m py_compile system-hardening-auditor/hardening_audit.py
           python -m py_compile socket-leak-guard/socket_leak_guard.py
+          python -m py_compile exposure-management/exposure.py
+          python -m py_compile exposure-management/exposure_manager/models.py
+          python -m py_compile exposure-management/exposure_manager/scoring.py
+          python -m py_compile exposure-management/exposure_manager/database.py
+          python -m py_compile exposure-management/exposure_manager/importers.py
+          python -m py_compile exposure-management/exposure_manager/service.py
+          python -m py_compile exposure-management/exposure_manager/reporting.py
           python -m py_compile pentest-workbench/app.py
           python -m py_compile pentest-workbench/ptworkbench/tools.py
 
@@ -41,6 +48,7 @@ jobs:
           python -m unittest discover -s pentest-workbench/tests -v
           python -m unittest discover -s system-hardening-auditor/tests -v
           python -m unittest discover -s socket-leak-guard/tests -v
+          python -m unittest discover -s exposure-management/tests -v
 
       - name: Workbench smoke test
         env:
