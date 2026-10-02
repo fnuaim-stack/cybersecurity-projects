@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import tempfile
@@ -12,7 +13,9 @@ from flask import Flask, Response, flash, redirect, render_template, request, ur
 from exposure_manager.active_scans import ScannerService
 from exposure_manager.analytics import build_analytics
 from exposure_manager.campaigns import CampaignManager
-from exposure_manager.intel import enrich_findings
+from exposure_manager.intel import enrich_findings, enrich_findings_online
+from exposure_manager.notifications import NotificationService
+from exposure_manager.scheduler import ScanScheduler
 from exposure_manager.models import VALID_STATUSES
 from exposure_manager.reporting import to_csv, to_json, to_markdown
 from exposure_manager.service import ExposureManager
@@ -34,7 +37,11 @@ FORMATS = [
 ]
 
 
-def create_app(database_path: str | Path | None = None) -> Flask:
+def create_app(
+    database_path: str | Path | None = None,
+    *,
+    start_scheduler: bool | None = None,
+) -> Flask:
     app = Flask(
         __name__,
         template_folder=str(BASE_DIR / "templates"),
@@ -50,10 +57,19 @@ def create_app(database_path: str | Path | None = None) -> Flask:
     manager = ExposureManager(db_path)
     campaigns = CampaignManager(manager.db)
     scanner = ScannerService(manager)
+    platform = manager.platform
+    scheduler = ScanScheduler(scanner, platform)
+    notifier = NotificationService(manager, platform)
+    should_start_scheduler = bool(start_scheduler) and os.environ.get("EXPOSURE_DISABLE_SCHEDULER") != "1"
+    if should_start_scheduler:
+        scheduler.start()
 
     app.config["MANAGER"] = manager
     app.config["CAMPAIGNS"] = campaigns
     app.config["SCANNER"] = scanner
+    app.config["PLATFORM"] = platform
+    app.config["SCHEDULER"] = scheduler
+    app.config["NOTIFIER"] = notifier
     app.config["DATABASE_PATH"] = str(db_path)
 
     @app.context_processor
@@ -70,6 +86,7 @@ def create_app(database_path: str | Path | None = None) -> Flask:
         analytics = build_analytics(manager.db)
         queue = manager.remediation_queue(8)
         scans = manager.db.list_scans(8)
+        scan_jobs = [scanner.store.get(item["id"]) for item in scanner.store.list(8)]
         return render_template(
             "dashboard.html",
             page="dashboard",
@@ -77,6 +94,7 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             analytics=analytics,
             queue=queue,
             scans=scans,
+            scan_jobs=scan_jobs,
         )
 
     @app.route("/scan", methods=["GET", "POST"])
@@ -175,9 +193,11 @@ def create_app(database_path: str | Path | None = None) -> Flask:
                 verification_misses=max(1, int(request.form.get("verify_misses", "2"))),
                 verify_missing=request.form.get("partial") != "on",
             )
+            notification = notifier.notify_scan(result)
             flash(
                 f"Imported {result['imported']} findings. "
-                f"{result['created']} new, {result['updated']} updated.",
+                f"{result['created']} new, {result['updated']} updated."
+                + (f" Sent {notification['sent']} notification(s)." if notification.get("sent") else ""),
                 "success",
             )
             return redirect(url_for("findings"))
@@ -196,22 +216,32 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             "source": request.args.get("source") or None,
             "owner": request.args.get("owner") or None,
         }
+        query = request.args.get("q", "").strip()
         min_risk_raw = request.args.get("min_risk", "").strip()
         min_risk = int(min_risk_raw) if min_risk_raw.isdigit() else None
+        page_number = max(1, int(request.args.get("page", "1") or "1"))
+        page_size = 100
         rows = manager.db.list_findings(
             status=filters["status"],
             severity=filters["severity"],
             source=filters["source"],
             owner=filters["owner"],
             min_risk=min_risk,
-            limit=1000,
+            query=query or None,
+            limit=page_size + 1,
+            offset=(page_number - 1) * page_size,
         )
+        has_next = len(rows) > page_size
+        rows = rows[:page_size]
         return render_template(
             "findings.html",
             page="findings",
             findings=rows,
             filters=filters,
             min_risk=min_risk_raw,
+            query=query,
+            page_number=page_number,
+            has_next=has_next,
         )
 
     @app.get("/findings/<int:finding_id>")
@@ -225,6 +255,7 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             "finding.html",
             page="findings",
             finding=finding,
+            notes=platform.notes(finding_id),
         )
 
     @app.post("/findings/<int:finding_id>/update")
@@ -251,6 +282,19 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             flash(f"Could not accept risk: {error}", "error")
         return redirect(url_for("finding_detail", finding_id=finding_id))
 
+    @app.post("/findings/<int:finding_id>/notes")
+    def finding_note(finding_id: int):
+        try:
+            platform.add_note(
+                finding_id,
+                request.form.get("note", ""),
+                request.form.get("author", ""),
+            )
+            flash("Note added.", "success")
+        except Exception as error:
+            flash(f"Could not add note: {error}", "error")
+        return redirect(url_for("finding_detail", finding_id=finding_id))
+
     @app.get("/assets")
     def assets():
         return render_template(
@@ -258,6 +302,7 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             page="assets",
             assets=manager.db.list_assets(),
             aliases=manager.assets.list_aliases(),
+            asset_tags=platform.asset_tags_map(),
         )
 
     @app.post("/assets/update")
@@ -286,6 +331,21 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             flash("Asset alias saved.", "success")
         except Exception as error:
             flash(f"Could not save alias: {error}", "error")
+        return redirect(url_for("assets"))
+
+    @app.post("/assets/tag")
+    def asset_tag():
+        try:
+            platform.add_asset_tag(request.form.get("asset", ""), request.form.get("tag", ""))
+            flash("Asset tag added.", "success")
+        except Exception as error:
+            flash(f"Could not add tag: {error}", "error")
+        return redirect(url_for("assets"))
+
+    @app.post("/assets/tag/remove")
+    def asset_tag_remove():
+        platform.remove_asset_tag(request.form.get("asset", ""), request.form.get("tag", ""))
+        flash("Asset tag removed.", "success")
         return redirect(url_for("assets"))
 
     @app.route("/campaigns", methods=["GET", "POST"])
@@ -378,6 +438,252 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             for path in paths:
                 path.unlink(missing_ok=True)
 
+    @app.post("/intel/online")
+    def intel_online():
+        try:
+            result = enrich_findings_online(manager.db)
+            flash(
+                f"Checked {result.get('cves_checked', 0)} CVEs and updated "
+                f"{result['updated_findings']} findings.",
+                "success",
+            )
+        except Exception as error:
+            flash(f"Online enrichment failed: {error}", "error")
+        return redirect(url_for("intel"))
+
+    @app.route("/automation", methods=["GET"])
+    def automation():
+        return render_template(
+            "automation.html",
+            page="automation",
+            providers=scanner.providers(),
+            profiles=platform.list_profiles(),
+            schedules=platform.list_schedules(),
+        )
+
+    @app.post("/automation/profiles")
+    def automation_profile_create():
+        try:
+            provider = request.form.get("provider", "")
+            target = request.form.get("target", "")
+            ports = request.form.get("ports", "quick")
+            scanner._validate(provider, target, ports)
+            platform.create_profile(
+                name=request.form.get("name", ""),
+                provider=provider,
+                target=target,
+                scope=request.form.get("scope", "default"),
+                ports=ports,
+                partial=request.form.get("partial") == "on",
+            )
+            flash("Scan profile saved.", "success")
+        except Exception as error:
+            flash(f"Could not save profile: {error}", "error")
+        return redirect(url_for("automation"))
+
+    @app.post("/automation/profiles/<profile_id>/run")
+    def automation_profile_run(profile_id: str):
+        try:
+            profile = platform.get_profile(profile_id)
+            job = scanner.start(
+                provider=profile["provider"],
+                target=profile["target"],
+                scope=profile["scope"],
+                ports=profile["ports"],
+                partial=bool(profile["partial"]),
+            )
+            return redirect(url_for("scan_job", job_id=job["id"]))
+        except Exception as error:
+            flash(f"Could not run profile: {error}", "error")
+            return redirect(url_for("automation"))
+
+    @app.post("/automation/profiles/<profile_id>/delete")
+    def automation_profile_delete(profile_id: str):
+        try:
+            platform.delete_profile(profile_id)
+            flash("Profile deleted.", "success")
+        except Exception as error:
+            flash(f"Could not delete profile: {error}", "error")
+        return redirect(url_for("automation"))
+
+    @app.post("/automation/schedules")
+    def automation_schedule_create():
+        try:
+            platform.create_schedule(
+                request.form.get("profile_id", ""),
+                interval_hours=int(request.form.get("interval_hours", "24")),
+                run_immediately=request.form.get("run_immediately") == "on",
+            )
+            scheduler.run_due_once()
+            flash("Schedule created.", "success")
+        except Exception as error:
+            flash(f"Could not create schedule: {error}", "error")
+        return redirect(url_for("automation"))
+
+    @app.post("/automation/schedules/<schedule_id>/toggle")
+    def automation_schedule_toggle(schedule_id: str):
+        try:
+            current = platform.get_schedule(schedule_id)
+            platform.set_schedule_enabled(schedule_id, not bool(current["enabled"]))
+            flash("Schedule updated.", "success")
+        except Exception as error:
+            flash(f"Could not update schedule: {error}", "error")
+        return redirect(url_for("automation"))
+
+    @app.post("/automation/schedules/<schedule_id>/delete")
+    def automation_schedule_delete(schedule_id: str):
+        try:
+            platform.delete_schedule(schedule_id)
+            flash("Schedule deleted.", "success")
+        except Exception as error:
+            flash(f"Could not delete schedule: {error}", "error")
+        return redirect(url_for("automation"))
+
+    @app.route("/triage", methods=["GET"])
+    def triage():
+        return render_template(
+            "triage.html",
+            page="triage",
+            suppressions=platform.list_suppressions(),
+        )
+
+    @app.post("/triage/suppressions")
+    def triage_suppression_create():
+        try:
+            platform.create_suppression(
+                name=request.form.get("name", ""),
+                source_pattern=request.form.get("source_pattern", "*"),
+                asset_pattern=request.form.get("asset_pattern", "*"),
+                title_pattern=request.form.get("title_pattern", "*"),
+                external_id_pattern=request.form.get("external_id_pattern", "*"),
+                reason=request.form.get("reason", ""),
+                expires_at=request.form.get("expires_at") or None,
+            )
+            result = platform.apply_suppressions()
+            flash(
+                f"Suppression rule saved. {result['suppressed_findings']} existing findings matched.",
+                "success",
+            )
+        except Exception as error:
+            flash(f"Could not save suppression: {error}", "error")
+        return redirect(url_for("triage"))
+
+    @app.post("/triage/suppressions/<rule_id>/toggle")
+    def triage_suppression_toggle(rule_id: str):
+        try:
+            current = platform.get_suppression(rule_id)
+            platform.set_suppression_enabled(rule_id, not bool(current["enabled"]))
+            flash("Suppression rule updated.", "success")
+        except Exception as error:
+            flash(f"Could not update suppression: {error}", "error")
+        return redirect(url_for("triage"))
+
+    def api_allowed() -> bool:
+        configured = os.environ.get("EXPOSURE_API_TOKEN")
+        if configured:
+            supplied = request.headers.get("Authorization", "")
+            expected = f"Bearer {configured}"
+            return hmac.compare_digest(supplied, expected)
+        return request.remote_addr in {"127.0.0.1", "::1"}
+
+    def api_guard():
+        if api_allowed():
+            return None
+        return {"error": "unauthorized"}, 401
+
+    @app.get("/api/v1/summary")
+    def api_v1_summary():
+        denied = api_guard()
+        if denied:
+            return denied
+        return {
+            "summary": manager.summary(),
+            "analytics": build_analytics(manager.db),
+        }
+
+    @app.get("/api/v1/findings")
+    def api_v1_findings():
+        denied = api_guard()
+        if denied:
+            return denied
+        limit = min(500, max(1, int(request.args.get("limit", "100"))))
+        return {
+            "findings": manager.db.list_findings(
+                status=request.args.get("status") or None,
+                severity=request.args.get("severity") or None,
+                source=request.args.get("source") or None,
+                owner=request.args.get("owner") or None,
+                query=request.args.get("q") or None,
+                limit=limit,
+            )
+        }
+
+    @app.get("/api/v1/assets")
+    def api_v1_assets():
+        denied = api_guard()
+        if denied:
+            return denied
+        tags = platform.asset_tags_map()
+        assets_payload = manager.db.list_assets()
+        for asset in assets_payload:
+            asset["tags"] = tags.get(asset["asset_key"], [])
+        return {"assets": assets_payload}
+
+    @app.get("/api/v1/scans")
+    def api_v1_scans():
+        denied = api_guard()
+        if denied:
+            return denied
+        return {
+            "jobs": scanner.store.list(min(200, max(1, int(request.args.get("limit", "50"))))),
+            "profiles": platform.list_profiles(),
+            "schedules": platform.list_schedules(),
+        }
+
+    @app.post("/api/v1/scans")
+    def api_v1_scan_start():
+        denied = api_guard()
+        if denied:
+            return denied
+        payload = request.get_json(silent=True) or {}
+        if payload.get("authorized") is not True:
+            return {"error": "authorized=true is required"}, 400
+        try:
+            job = scanner.start(
+                provider=str(payload.get("provider") or ""),
+                target=str(payload.get("target") or ""),
+                scope=str(payload.get("scope") or "default"),
+                ports=str(payload.get("ports") or "quick"),
+                partial=bool(payload.get("partial", False)),
+            )
+        except Exception as error:
+            return {"error": str(error)}, 400
+        return {"job": job}, 202
+
+    @app.route("/settings", methods=["GET", "POST"])
+    def settings():
+        if request.method == "POST":
+            platform.set_setting(
+                "notifications_enabled",
+                request.form.get("notifications_enabled") == "on",
+            )
+            min_risk_raw = request.form.get("notification_min_risk", "70")
+            try:
+                min_risk = max(0, min(100, int(min_risk_raw)))
+            except ValueError:
+                min_risk = 70
+            platform.set_setting("notification_min_risk", min_risk)
+            flash("Settings saved.", "success")
+            return redirect(url_for("settings"))
+
+        return render_template(
+            "settings.html",
+            page="settings",
+            notification=notifier.configured(),
+            providers=scanner.providers(),
+            api_token_configured=bool(os.environ.get("EXPOSURE_API_TOKEN")),
+        )
+
     @app.get("/reports/<report_format>")
     def download_report(report_format: str):
         queue = manager.remediation_queue(5000)
@@ -410,7 +716,7 @@ def create_app(database_path: str | Path | None = None) -> Flask:
     return app
 
 
-app = create_app()
+app = create_app(start_scheduler=False)
 
 
 def _open_browser() -> None:
@@ -418,6 +724,8 @@ def _open_browser() -> None:
 
 
 if __name__ == "__main__":
+    if os.environ.get("EXPOSURE_DISABLE_SCHEDULER") != "1":
+        app.config["SCHEDULER"].start()
     if os.environ.get("EXPOSURE_NO_BROWSER") != "1":
         threading.Timer(1.0, _open_browser).start()
     app.run(host="127.0.0.1", port=5055, debug=False)

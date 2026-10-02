@@ -1,24 +1,10 @@
 # Exposure Management
 
-This project turns scanner results into one remediation workflow.
+A local vulnerability and exposure management app.
 
-It keeps an asset inventory, removes duplicate findings, adds asset context to risk, tracks owners and due dates, verifies fixes across rescans, and shows which work should be handled first.
+It can run scans, import results from other tools, prioritize findings, track remediation, verify fixes across rescans, and keep asset context in one place.
 
-## Supported imports
-
-- Nuclei
-- Trivy
-- Nmap
-- Nessus
-- OpenVAS
-- OWASP ZAP
-- Semgrep
-- SARIF
-- Generic JSON, JSONL, or CSV
-
-## Run the UI
-
-On Windows:
+## Run on Windows
 
 ~~~powershell
 cd exposure-management
@@ -26,66 +12,46 @@ py -m pip install -r requirements.txt
 py webapp.py
 ~~~
 
-The browser opens at `http://127.0.0.1:5055`.
+Open:
 
-Open **Scan** to scan directly from the app.
+~~~text
+http://127.0.0.1:5055
+~~~
 
-The built-in network and web scanners work without extra tools. If Nmap, Nuclei, or Trivy are installed and available in PATH, the app enables those scanners too.
+## Main features
 
-Quick local test:
+- Built-in network and web scans
+- Optional Nmap, Nuclei, and Trivy scans
+- Nuclei, Trivy, Nmap, Nessus, OpenVAS, ZAP, Semgrep and SARIF imports
+- Asset owners, criticality, aliases and tags
+- Risk prioritization with CVSS, exposure, CISA KEV and EPSS
+- Finding search, notes, risk acceptance and suppression rules
+- Remediation campaigns and SLA tracking
+- Scan profiles and recurring schedules
+- Scan-to-scan new, reopened and resolved counts
+- Analytics, CSV/JSON/Markdown reports
+- Jira, Slack and webhook support from the CLI
+- Local REST API for automation
 
-1. Open **Scan**.
-2. Choose **Built-in network scan**.
-3. Enter a host/IP you are authorized to test.
-4. Click **Start scan**.
-5. The results are added to Findings automatically.
+The app stays on `127.0.0.1` by default.
 
-You can still test with `samples/demo_findings.json` from **Import scans** if you do not want to run a live scan.
+## Full demo
+
+For a safe test of most features:
+
+~~~powershell
+powershell -ExecutionPolicy Bypass -File samples\full_demo\run_demo.ps1
+~~~
+
+This creates only local demo targets and synthetic findings. See `samples/full_demo/README.md`.
 
 ## CLI
 
-~~~bash
-python exposure.py import scan.jsonl --format nuclei --scope prod
-python exposure.py summary
-python exposure.py queue
+~~~powershell
+py exposure.py summary
+py exposure.py queue
 ~~~
-
-Add asset context:
-
-~~~bash
-python exposure.py asset-set app.example.com --criticality 5 --internet-exposed yes --owner security
-python exposure.py asset-alias app.example.com 192.0.2.10
-~~~
-
-Bulk asset context can also be imported from CSV with `asset-import`.
-
-See MTTR, SLA, aging, recurrence, and top-risk assets:
-
-~~~bash
-python exposure.py analytics
-~~~
-
-Enrich CVE findings with local CISA KEV and EPSS files:
-
-~~~bash
-python exposure.py intel-enrich --kev kev.json --epss epss.csv
-~~~
-
-Create a remediation campaign:
-
-~~~bash
-python exposure.py campaign-create "Critical fixes" --min-risk 90 --owner security
-python exposure.py campaigns
-~~~
-
-Export the queue:
-
-~~~bash
-python exposure.py report --format markdown --output report.md
-~~~
-
-Optional Jira, Slack, and generic webhook commands are available for sending findings to other systems. Secrets are read from environment variables.
 
 By default the database is stored at `~/.exposure-management/exposure.db`.
 
-A finding is not considered fixed after one clean scan. By default it must be absent from two complete scans from the same source and scope before it is verified resolved. Use `--partial` when importing incomplete scan results so missing findings are not counted as fixed.
+Use `--partial` for incomplete scan imports so missing findings are not treated as proof that a vulnerability was fixed.

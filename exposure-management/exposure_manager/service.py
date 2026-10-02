@@ -10,6 +10,7 @@ from .assets import AssetResolver
 from .database import Database
 from .importers import load_findings
 from .models import VALID_STATUSES, NormalizedFinding
+from .platform_features import PlatformStore
 from .scoring import calculate_risk, due_date, normalize_severity
 
 
@@ -33,6 +34,7 @@ class ExposureManager:
     def __init__(self, database_path: str | Path) -> None:
         self.db = Database(database_path)
         self.assets = AssetResolver(self.db)
+        self.platform = PlatformStore(self.db)
 
     @staticmethod
     def fingerprint(source: str, scope: str, item: NormalizedFinding) -> str:
@@ -154,6 +156,7 @@ class ExposureManager:
                         action,
                         f"Observed in scan {scan_id}",
                     )
+                    self.platform.apply_suppression_to_finding(int(existing["id"]))
                     updated += 1
                 else:
                     finding_id = self.db.insert_finding(
@@ -194,6 +197,7 @@ class ExposureManager:
                         "created",
                         f"Imported from {source_name} scan {scan_id}",
                     )
+                    self.platform.apply_suppression_to_finding(finding_id)
                     created += 1
 
             verified = 0

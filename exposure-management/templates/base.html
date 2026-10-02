@@ -11,21 +11,21 @@
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">EM</div>
-        <div>
-          <strong>Exposure Management</strong>
-          <span>Local workspace</span>
-        </div>
+        <div><strong>Exposure Management</strong><span>Local workspace</span></div>
       </div>
 
       <nav class="nav">
         <a class="{{ 'active' if page == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
         <a class="{{ 'active' if page == 'scan' else '' }}" href="{{ url_for('scan_page') }}">Scan</a>
+        <a class="{{ 'active' if page == 'automation' else '' }}" href="{{ url_for('automation') }}">Automation</a>
         <a class="{{ 'active' if page == 'import' else '' }}" href="{{ url_for('import_scan') }}">Import scans</a>
         <a class="{{ 'active' if page == 'findings' else '' }}" href="{{ url_for('findings') }}">Findings</a>
+        <a class="{{ 'active' if page == 'triage' else '' }}" href="{{ url_for('triage') }}">Triage</a>
         <a class="{{ 'active' if page == 'assets' else '' }}" href="{{ url_for('assets') }}">Assets</a>
         <a class="{{ 'active' if page == 'campaigns' else '' }}" href="{{ url_for('campaign_list') }}">Campaigns</a>
         <a class="{{ 'active' if page == 'analytics' else '' }}" href="{{ url_for('analytics') }}">Analytics</a>
         <a class="{{ 'active' if page == 'intel' else '' }}" href="{{ url_for('intel') }}">Threat intel</a>
+        <a class="{{ 'active' if page == 'settings' else '' }}" href="{{ url_for('settings') }}">Settings</a>
       </nav>
 
       <div class="sidebar-footer">

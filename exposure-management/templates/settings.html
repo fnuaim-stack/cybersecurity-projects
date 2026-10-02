@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Settings · Exposure Management{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block eyebrow %}Local platform configuration{% endblock %}
+{% block content %}
+<div class="two-col">
+  <section class="panel">
+    <div class="panel-head"><div><h2>Scan notifications</h2><p>Send important results after a scan finishes.</p></div></div>
+    <form method="post" class="form-stack">
+      <label class="check"><input type="checkbox" name="notifications_enabled" {{ 'checked' if notification.enabled else '' }}> Enable automatic scan notifications</label>
+      <label>Minimum risk score<input type="number" name="notification_min_risk" min="0" max="100" value="{{ notification.min_risk }}"></label>
+      <button class="button" type="submit">Save settings</button>
+    </form>
+    <div class="settings-status">
+      <div><span>Slack webhook</span><strong>{{ 'Configured' if notification.slack else 'Not configured' }}</strong></div>
+      <div><span>Generic webhook</span><strong>{{ 'Configured' if notification.webhook else 'Not configured' }}</strong></div>
+    </div>
+    <p class="muted small-copy">Set <code>EXPOSURE_SLACK_WEBHOOK</code> and/or <code>EXPOSURE_WEBHOOK_URL</code> before starting the app. Webhook secrets are not stored in SQLite.</p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Automation status</h2><p>Local integrations available to this app instance.</p></div></div>
+    <div class="settings-status">
+      {% for provider in providers %}
+      <div><span>{{ provider.name }}</span><strong>{{ 'Ready' if provider.available else 'Unavailable' }}</strong></div>
+      {% endfor %}
+      <div><span>REST API token</span><strong>{{ 'Configured' if api_token_configured else 'Localhost only' }}</strong></div>
+    </div>
+    <div class="api-callout">
+      API base: <code>http://127.0.0.1:5055/api/v1/</code><br>
+      Optional token: <code>EXPOSURE_API_TOKEN</code>
+    </div>
+  </section>
+</div>
+{% endblock %}

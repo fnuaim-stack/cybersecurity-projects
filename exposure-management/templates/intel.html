@@ -1,14 +1,24 @@
 {% extends "base.html" %}
 {% block title %}Threat intel · Exposure Management{% endblock %}
 {% block heading %}Threat intelligence{% endblock %}
-{% block eyebrow %}KEV and EPSS enrichment{% endblock %}
+{% block eyebrow %}CISA KEV and EPSS enrichment{% endblock %}
 {% block content %}
-<section class="panel narrow">
-  <div class="panel-head"><div><h2>Enrich existing CVE findings</h2><p>Upload local CISA KEV JSON and/or EPSS CSV files. Nothing is downloaded automatically.</p></div></div>
-  <form method="post" enctype="multipart/form-data" class="form-stack">
-    <label>CISA KEV JSON<input type="file" name="kev_file" accept=".json"></label>
-    <label>EPSS CSV<input type="file" name="epss_file" accept=".csv"></label>
-    <button class="button" type="submit">Enrich findings</button>
-  </form>
-</section>
+<div class="two-col">
+  <section class="panel">
+    <div class="panel-head"><div><h2>Update from official feeds</h2><p>Checks CVEs already in your findings against CISA KEV and FIRST EPSS.</p></div></div>
+    <p class="prose">Use this when you want current exploitation context without downloading files manually.</p>
+    <form method="post" action="{{ url_for('intel_online') }}">
+      <button class="button" type="submit">Update online now</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Use local files</h2><p>Useful for offline labs or pinned datasets.</p></div></div>
+    <form method="post" enctype="multipart/form-data" class="form-stack">
+      <label>CISA KEV JSON<input type="file" name="kev_file" accept=".json"></label>
+      <label>EPSS CSV<input type="file" name="epss_file" accept=".csv"></label>
+      <button class="button secondary" type="submit">Enrich from files</button>
+    </form>
+  </section>
+</div>
 {% endblock %}

@@ -4,7 +4,8 @@
 {% block eyebrow %}Remediation queue{% endblock %}
 {% block content %}
 <section class="panel">
-  <form method="get" class="filters">
+  <form method="get" class="filters findings-filters">
+    <input name="q" value="{{ query }}" placeholder="Search asset, CVE, title, owner...">
     <select name="status"><option value="">All statuses</option>{% for value in valid_statuses %}<option value="{{ value }}" {{ 'selected' if filters.status == value else '' }}>{{ value.replace('_',' ') }}</option>{% endfor %}</select>
     <select name="severity"><option value="">All severities</option>{% for value in ['critical','high','medium','low','info'] %}<option value="{{ value }}" {{ 'selected' if filters.severity == value else '' }}>{{ value }}</option>{% endfor %}</select>
     <input name="source" value="{{ filters.source or '' }}" placeholder="Source">
@@ -32,6 +33,16 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <div class="pagination">
+    {% if page_number > 1 %}
+    <a class="button secondary small" href="{{ url_for('findings', page=page_number-1, q=query, status=filters.status or '', severity=filters.severity or '', source=filters.source or '', owner=filters.owner or '', min_risk=min_risk) }}">Previous</a>
+    {% endif %}
+    <span>Page {{ page_number }}</span>
+    {% if has_next %}
+    <a class="button secondary small" href="{{ url_for('findings', page=page_number+1, q=query, status=filters.status or '', severity=filters.severity or '', source=filters.source or '', owner=filters.owner or '', min_risk=min_risk) }}">Next</a>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

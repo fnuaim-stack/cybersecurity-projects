@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .notifications import NotificationService
+
 
 COMMON_PORTS = [
     21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 389, 443, 445,
@@ -392,6 +394,17 @@ class ScannerService:
                 f"Imported {summary.get('imported', 0)} results; "
                 f"{summary.get('created', 0)} new and {summary.get('updated', 0)} updated.",
             )
+            notification = NotificationService(
+                self.manager,
+                self.manager.platform,
+            ).notify_scan(summary)
+            if notification.get("sent"):
+                self.store.append_log(
+                    job_id,
+                    f"Sent {notification['sent']} scan notification(s).",
+                )
+            for message in notification.get("errors", []):
+                self.store.append_log(job_id, f"Notification error: {message}")
         except ScanCancelled as error:
             self.store.update(
                 job_id,

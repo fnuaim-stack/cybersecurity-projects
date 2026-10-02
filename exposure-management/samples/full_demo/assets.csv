@@ -1,0 +1,4 @@
+asset,name,criticality,internet_exposed,owner,environment,aliases
+demo-vpn.local,Demo VPN,5,yes,network-team,production,192.0.2.10;demo-vpn
+demo-app.local,Demo App,4,yes,app-team,production,192.0.2.20;demo-app
+demo-printer.local,Demo Printer,1,no,office-it,lab,192.0.2.30

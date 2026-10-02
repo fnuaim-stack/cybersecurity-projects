@@ -18,12 +18,7 @@
         <thead><tr><th>Risk</th><th>Asset</th><th>Finding</th><th>Status</th></tr></thead>
         <tbody>
           {% for item in queue %}
-          <tr>
-            <td><span class="risk risk-{{ item.risk_band }}">{{ item.risk_score }}</span></td>
-            <td class="mono">{{ item.asset_key }}</td>
-            <td><a href="{{ url_for('finding_detail', finding_id=item.id) }}">{{ item.title }}</a></td>
-            <td><span class="status">{{ item.status.replace('_', ' ') }}</span></td>
-          </tr>
+          <tr><td><span class="risk risk-{{ item.risk_band }}">{{ item.risk_score }}</span></td><td class="mono">{{ item.asset_key }}</td><td><a href="{{ url_for('finding_detail', finding_id=item.id) }}">{{ item.title }}</a></td><td><span class="status">{{ item.status.replace('_', ' ') }}</span></td></tr>
           {% else %}
           <tr><td colspan="4" class="empty">No active findings yet.</td></tr>
           {% endfor %}
@@ -44,7 +39,32 @@
 </div>
 
 <section class="panel">
-  <div class="panel-head"><div><h2>Recent scans</h2><p>Latest imported scanner results.</p></div></div>
+  <div class="panel-head"><div><h2>Recent scan changes</h2><p>What each active scan added, reopened, or verified as resolved.</p></div><a href="{{ url_for('scan_page') }}">Scan history</a></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Scanner</th><th>Target</th><th>New</th><th>Updated</th><th>Reopened</th><th>Resolved</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for job in scan_jobs %}
+        {% set delta = job.import_summary %}
+        <tr>
+          <td>{{ job.provider }}</td>
+          <td class="mono">{{ job.target }}</td>
+          <td>{{ delta.get('created', 0) }}</td>
+          <td>{{ delta.get('updated', 0) }}</td>
+          <td>{{ delta.get('reopened', 0) }}</td>
+          <td>{{ delta.get('verified_resolved', 0) }}</td>
+          <td><a href="{{ url_for('scan_job', job_id=job.id) }}"><span class="job-status job-{{ job.status }}">{{ job.status.replace('_',' ') }}</span></a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty">Run a scan to see change history.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Recent imports</h2><p>Latest normalized scanner results.</p></div></div>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Source</th><th>Scope</th><th>Imported</th><th>Status</th><th>Started</th></tr></thead>
@@ -52,7 +72,7 @@
         {% for scan in scans %}
         <tr><td>{{ scan.source }}</td><td>{{ scan.scope }}</td><td>{{ scan.imported_count }}</td><td>{{ scan.status }}</td><td class="mono">{{ scan.started_at[:19].replace('T', ' ') }}</td></tr>
         {% else %}
-        <tr><td colspan="5" class="empty">Import your first scan to populate the dashboard.</td></tr>
+        <tr><td colspan="5" class="empty">No imports yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

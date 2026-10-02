@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Automation · Exposure Management{% endblock %}
+{% block heading %}Automation{% endblock %}
+{% block eyebrow %}Profiles and schedules{% endblock %}
+{% block content %}
+<div class="two-col">
+  <section class="panel">
+    <div class="panel-head"><div><h2>Saved scan profiles</h2><p>Keep repeatable scan settings instead of retyping targets.</p></div></div>
+    <div class="card-list">
+      {% for item in profiles %}
+      <div class="campaign-row">
+        <div>
+          <strong>{{ item.name }}</strong>
+          <span>{{ item.provider }} · {{ item.target }} · {{ item.scope }} · {{ item.ports }}</span>
+        </div>
+        <div class="top-actions">
+          <form method="post" action="{{ url_for('automation_profile_run', profile_id=item.id) }}"><button class="button small">Run</button></form>
+          <form method="post" action="{{ url_for('automation_profile_delete', profile_id=item.id) }}"><button class="button ghost small">Delete</button></form>
+        </div>
+      </div>
+      {% else %}
+      <p class="empty">No saved profiles yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Create profile</h2>
+    <form method="post" action="{{ url_for('automation_profile_create') }}" class="form-stack">
+      <label>Name<input name="name" required placeholder="Weekly DMZ scan"></label>
+      <label>Scanner<select name="provider">{% for item in providers %}<option value="{{ item.id }}" {{ 'disabled' if not item.available else '' }}>{{ item.name }}{% if not item.available %} — unavailable{% endif %}</option>{% endfor %}</select></label>
+      <label>Target<input name="target" required placeholder="192.168.1.0/24 or https://app.example.com"></label>
+      <label>Scope<input name="scope" value="default"></label>
+      <label>Ports<input name="ports" value="quick" placeholder="quick, web, 22,80,443"></label>
+      <label class="check"><input type="checkbox" name="partial"> Partial scan</label>
+      <button class="button" type="submit">Save profile</button>
+    </form>
+  </section>
+</div>
+
+<div class="two-col">
+  <section class="panel">
+    <div class="panel-head"><div><h2>Schedules</h2><p>Recurring scans run while the local app is running.</p></div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Profile</th><th>Every</th><th>Next run</th><th>Last job</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for item in schedules %}
+          <tr>
+            <td>{{ item.profile_name }}</td>
+            <td>{{ item.interval_hours }}h</td>
+            <td class="mono">{{ item.next_run_at[:19].replace('T',' ') }}</td>
+            <td class="mono">{{ item.last_job_id or '—' }}</td>
+            <td><span class="status">{{ 'enabled' if item.enabled else 'paused' }}</span></td>
+            <td>
+              <div class="top-actions">
+                <form method="post" action="{{ url_for('automation_schedule_toggle', schedule_id=item.id) }}"><button class="button secondary small">{{ 'Pause' if item.enabled else 'Enable' }}</button></form>
+                <form method="post" action="{{ url_for('automation_schedule_delete', schedule_id=item.id) }}"><button class="button ghost small">Delete</button></form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="empty">No recurring schedules yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Create schedule</h2>
+    <form method="post" action="{{ url_for('automation_schedule_create') }}" class="form-stack">
+      <label>Profile<select name="profile_id" required><option value="">Choose profile</option>{% for item in profiles %}<option value="{{ item.id }}">{{ item.name }}</option>{% endfor %}</select></label>
+      <label>Frequency<select name="interval_hours">
+        <option value="1">Every hour</option>
+        <option value="6">Every 6 hours</option>
+        <option value="12">Every 12 hours</option>
+        <option value="24" selected>Daily</option>
+        <option value="168">Weekly</option>
+      </select></label>
+      <label class="check"><input type="checkbox" name="run_immediately"> Run once now</label>
+      <button class="button" type="submit">Create schedule</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
