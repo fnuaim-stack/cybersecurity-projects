@@ -10,6 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from exposure_manager.intel import fetch_epss, fetch_kev
+from exposure_manager.notifications import NotificationService
 from exposure_manager.scheduler import ScanScheduler
 from exposure_manager.service import ExposureManager
 from webapp import create_app
@@ -170,7 +171,7 @@ class PlatformUpgradeTests(unittest.TestCase):
         app.config.update(TESTING=True)
         client = app.test_client()
 
-        for path in ["/automation", "/triage", "/api/v1/summary", "/api/v1/assets", "/api/v1/scans"]:
+        for path in ["/automation", "/triage", "/settings", "/api/v1/summary", "/api/v1/assets", "/api/v1/scans"]:
             response = client.get(path)
             self.assertEqual(response.status_code, 200, path)
 
@@ -197,6 +198,23 @@ class PlatformUpgradeTests(unittest.TestCase):
             },
         )
         self.assertEqual(unauthorized_scan.status_code, 400)
+
+    @patch("exposure_manager.notifications.send_slack")
+    def test_scan_notifications_use_threshold_and_env_secret(self, send_slack):
+        scan = self.write_json(
+            "notify.json",
+            [{"asset": "vpn.example.test", "title": "Critical issue", "severity": "critical"}],
+        )
+        summary = self.manager.import_scan(scan, fmt="generic", source="scanner", scope="prod")
+        self.manager.platform.set_setting("notifications_enabled", True)
+        self.manager.platform.set_setting("notification_min_risk", 70)
+
+        with patch.dict("os.environ", {"EXPOSURE_SLACK_WEBHOOK": "https://example.invalid/hook"}):
+            result = NotificationService(self.manager, self.manager.platform).notify_scan(summary)
+
+        self.assertEqual(result["sent"], 1)
+        self.assertEqual(result["finding_count"], 1)
+        send_slack.assert_called_once()
 
 
 if __name__ == "__main__":
