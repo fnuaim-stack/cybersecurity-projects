@@ -1,0 +1,35 @@
+[
+  {
+    "asset": "demo-vpn.local",
+    "title": "Demo critical VPN vulnerability",
+    "external_id": "CVE-2099-0001",
+    "severity": "critical",
+    "cvss": 9.8,
+    "port": 443,
+    "protocol": "tcp",
+    "service": "https",
+    "description": "Safe synthetic finding used to exercise prioritization, threat-intel enrichment, ownership, notes and campaigns.",
+    "remediation": "Apply the fictional vendor update in this demo scenario.",
+    "exploit_available": true
+  },
+  {
+    "asset": "demo-app.local",
+    "title": "Demo outdated web component",
+    "external_id": "CVE-2099-0002",
+    "severity": "high",
+    "cvss": 8.1,
+    "port": 443,
+    "protocol": "tcp",
+    "service": "https",
+    "description": "Safe synthetic application finding.",
+    "remediation": "Upgrade the fictional component."
+  },
+  {
+    "asset": "demo-printer.local",
+    "title": "Demo expected informational finding",
+    "external_id": "DEMO-EXPECTED-001",
+    "severity": "low",
+    "description": "This finding exists to test suppression and false-positive handling.",
+    "remediation": "No action is required in the demo."
+  }
+]
