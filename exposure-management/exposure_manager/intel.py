@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 import json
 import re
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,6 +12,8 @@ from .scoring import calculate_risk, due_date
 
 
 CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,7}\b", re.IGNORECASE)
+CISA_KEV_JSON_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+FIRST_EPSS_API_URL = "https://api.first.org/data/v1/epss"
 
 
 def _band(score: int) -> str:
@@ -69,9 +73,64 @@ def load_epss(path: str | Path) -> dict[str, dict]:
     return result
 
 
-def enrich_findings(db, *, kev_path: str | Path | None = None, epss_path: str | Path | None = None) -> dict:
-    kev = load_kev(kev_path) if kev_path else {}
-    epss = load_epss(epss_path) if epss_path else {}
+def fetch_kev(*, timeout: int = 25) -> dict[str, dict]:
+    request = urllib.request.Request(
+        CISA_KEV_JSON_URL,
+        headers={"User-Agent": "ExposureManagement/0.4"},
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    result = {}
+    for row in data.get("vulnerabilities", []):
+        cve = str(row.get("cveID") or "").upper()
+        if cve:
+            result[cve] = row
+    return result
+
+
+def fetch_epss(cves: set[str], *, timeout: int = 25) -> dict[str, dict]:
+    ordered = sorted({cve.upper() for cve in cves if CVE_RE.fullmatch(cve)})
+    result: dict[str, dict] = {}
+    batch: list[str] = []
+    length = 0
+
+    def flush(values: list[str]) -> None:
+        if not values:
+            return
+        query = urllib.parse.urlencode({"cve": ",".join(values)})
+        request = urllib.request.Request(
+            f"{FIRST_EPSS_API_URL}?{query}",
+            headers={"User-Agent": "ExposureManagement/0.4"},
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        for row in payload.get("data", []):
+            cve = str(row.get("cve") or "").upper()
+            if not cve:
+                continue
+            try:
+                epss = float(row.get("epss") or 0)
+            except (TypeError, ValueError):
+                epss = 0.0
+            try:
+                percentile = float(row.get("percentile") or 0)
+            except (TypeError, ValueError):
+                percentile = 0.0
+            result[cve] = {"epss": epss, "percentile": percentile}
+
+    for cve in ordered:
+        extra = len(cve) + (1 if batch else 0)
+        if batch and length + extra > 1800:
+            flush(batch)
+            batch = []
+            length = 0
+        batch.append(cve)
+        length += extra
+    flush(batch)
+    return result
+
+
+def _enrich_from_maps(db, kev: dict[str, dict], epss: dict[str, dict]) -> dict:
     changed = 0
     kev_matches = 0
     epss_matches = 0
@@ -86,13 +145,14 @@ def enrich_findings(db, *, kev_path: str | Path | None = None, epss_path: str | 
         if not matched_kev and not matched_epss:
             continue
 
-        metadata = {}
         try:
             metadata = json.loads(finding.get("metadata_json") or "{}")
         except json.JSONDecodeError:
             metadata = {}
 
         intel = metadata.setdefault("threat_intel", {})
+        intel["updated_at"] = datetime.now(timezone.utc).isoformat()
+
         if matched_kev:
             intel["cisa_kev"] = [
                 {
@@ -101,6 +161,8 @@ def enrich_findings(db, *, kev_path: str | Path | None = None, epss_path: str | 
                     "due_date": kev[cve].get("dueDate"),
                     "ransomware_use": kev[cve].get("knownRansomwareCampaignUse"),
                     "required_action": kev[cve].get("requiredAction"),
+                    "vendor": kev[cve].get("vendorProject"),
+                    "product": kev[cve].get("product"),
                 }
                 for cve in matched_kev
             ]
@@ -164,3 +226,29 @@ def enrich_findings(db, *, kev_path: str | Path | None = None, epss_path: str | 
         "kev_matches": kev_matches,
         "epss_matches": epss_matches,
     }
+
+
+def enrich_findings(db, *, kev_path: str | Path | None = None, epss_path: str | Path | None = None) -> dict:
+    kev = load_kev(kev_path) if kev_path else {}
+    epss = load_epss(epss_path) if epss_path else {}
+    return _enrich_from_maps(db, kev, epss)
+
+
+def enrich_findings_online(db, *, timeout: int = 25) -> dict:
+    all_cves: set[str] = set()
+    for finding in db.list_findings(limit=100000):
+        all_cves.update(_extract_cves(finding))
+
+    if not all_cves:
+        return {
+            "updated_findings": 0,
+            "kev_matches": 0,
+            "epss_matches": 0,
+            "cves_checked": 0,
+        }
+
+    kev = fetch_kev(timeout=timeout)
+    epss = fetch_epss(all_cves, timeout=timeout)
+    result = _enrich_from_maps(db, kev, epss)
+    result["cves_checked"] = len(all_cves)
+    return result
