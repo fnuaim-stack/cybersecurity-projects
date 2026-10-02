@@ -9,6 +9,7 @@ from pathlib import Path
 
 from flask import Flask, Response, flash, redirect, render_template, request, url_for
 
+from exposure_manager.active_scans import ScannerService
 from exposure_manager.analytics import build_analytics
 from exposure_manager.campaigns import CampaignManager
 from exposure_manager.intel import enrich_findings
@@ -48,9 +49,11 @@ def create_app(database_path: str | Path | None = None) -> Flask:
     )
     manager = ExposureManager(db_path)
     campaigns = CampaignManager(manager.db)
+    scanner = ScannerService(manager)
 
     app.config["MANAGER"] = manager
     app.config["CAMPAIGNS"] = campaigns
+    app.config["SCANNER"] = scanner
     app.config["DATABASE_PATH"] = str(db_path)
 
     @app.context_processor
@@ -75,6 +78,77 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             queue=queue,
             scans=scans,
         )
+
+    @app.route("/scan", methods=["GET", "POST"])
+    def scan_page():
+        if request.method == "POST":
+            if request.form.get("authorized") != "on":
+                flash("Confirm that you are authorized to scan the target.", "error")
+                return redirect(url_for("scan_page"))
+
+            port_mode = request.form.get("port_mode", "quick")
+            ports = request.form.get("custom_ports", "").strip() if port_mode == "custom" else port_mode
+            try:
+                job = scanner.start(
+                    provider=request.form.get("provider", ""),
+                    target=request.form.get("target", ""),
+                    scope=request.form.get("scope", "default"),
+                    ports=ports,
+                    partial=request.form.get("partial") == "on",
+                )
+                return redirect(url_for("scan_job", job_id=job["id"]))
+            except Exception as error:
+                flash(f"Could not start scan: {error}", "error")
+                return redirect(url_for("scan_page"))
+
+        return render_template(
+            "scan.html",
+            page="scan",
+            providers=scanner.providers(),
+            jobs=scanner.store.list(30),
+        )
+
+    @app.get("/scan/jobs/<job_id>")
+    def scan_job(job_id: str):
+        try:
+            job = scanner.store.get(job_id)
+        except KeyError:
+            flash("Scan job not found.", "error")
+            return redirect(url_for("scan_page"))
+        return render_template(
+            "scan_job.html",
+            page="scan",
+            job=job,
+        )
+
+    @app.get("/api/scan/jobs/<job_id>")
+    def scan_job_api(job_id: str):
+        try:
+            job = scanner.store.get(job_id)
+        except KeyError:
+            return {"error": "not found"}, 404
+        return {
+            "id": job["id"],
+            "provider": job["provider"],
+            "target": job["target"],
+            "status": job["status"],
+            "progress": job["progress"],
+            "result_count": job["result_count"],
+            "log_text": job["log_text"],
+            "error": job["error"],
+            "started_at": job["started_at"],
+            "finished_at": job["finished_at"],
+            "import_summary": job["import_summary"],
+        }
+
+    @app.post("/scan/jobs/<job_id>/cancel")
+    def scan_cancel(job_id: str):
+        try:
+            scanner.cancel(job_id)
+            flash("Cancellation requested.", "success")
+        except Exception as error:
+            flash(f"Could not cancel scan: {error}", "error")
+        return redirect(url_for("scan_job", job_id=job_id))
 
     @app.route("/import", methods=["GET", "POST"])
     def import_scan():
