@@ -19,6 +19,7 @@
 
       <nav class="nav">
         <a class="{{ 'active' if page == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a class="{{ 'active' if page == 'scan' else '' }}" href="{{ url_for('scan_page') }}">Scan</a>
         <a class="{{ 'active' if page == 'import' else '' }}" href="{{ url_for('import_scan') }}">Import scans</a>
         <a class="{{ 'active' if page == 'findings' else '' }}" href="{{ url_for('findings') }}">Findings</a>
         <a class="{{ 'active' if page == 'assets' else '' }}" href="{{ url_for('assets') }}">Assets</a>
@@ -41,7 +42,7 @@
         </div>
         <div class="top-actions">
           <a class="button secondary" href="{{ url_for('download_report', report_format='csv') }}">Export CSV</a>
-          <a class="button" href="{{ url_for('import_scan') }}">Import scan</a>
+          <a class="button" href="{{ url_for('scan_page') }}">New scan</a>
         </div>
       </header>
 
