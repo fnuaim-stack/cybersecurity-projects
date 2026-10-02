@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Scan {{ job.id }} · Exposure Management{% endblock %}
+{% block heading %}Scan job{% endblock %}
+{% block eyebrow %}{{ job.provider }} · {{ job.target }}{% endblock %}
+{% block content %}
+<section class="metric-grid compact-metrics">
+  <article class="metric"><span>Status</span><strong class="small-text" id="job-status">{{ job.status.replace('_',' ') }}</strong></article>
+  <article class="metric"><span>Progress</span><strong id="job-progress-text">{{ job.progress }}%</strong></article>
+  <article class="metric"><span>Results</span><strong id="job-results">{{ job.result_count }}</strong></article>
+  <article class="metric"><span>Scope</span><strong class="small-text">{{ job.scope }}</strong></article>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <div><h2>Progress</h2><p>{{ job.target }}</p></div>
+    <div class="top-actions">
+      <a class="button secondary small" href="{{ url_for('findings', source=job.provider) }}">View findings</a>
+      {% if job.status in ['queued','running','cancel_requested'] %}
+      <form method="post" action="{{ url_for('scan_cancel', job_id=job.id) }}" id="cancel-form">
+        <button class="button danger small" type="submit">Cancel</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <div class="progress-track"><i id="progress-bar" style="width: {{ job.progress }}%"></i></div>
+  <div id="job-error" class="scan-error {{ '' if job.error else 'hidden' }}">{{ job.error }}</div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Scan log</h2><p>Live scanner activity and import status.</p></div></div>
+  <pre class="scan-log" id="scan-log">{{ job.log_text or 'Waiting for scan output...' }}</pre>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Job details</h2></div></div>
+  <dl class="detail-list">
+    <div><dt>Job ID</dt><dd class="mono">{{ job.id }}</dd></div>
+    <div><dt>Provider</dt><dd>{{ job.provider }}</dd></div>
+    <div><dt>Target</dt><dd class="mono">{{ job.target }}</dd></div>
+    <div><dt>Ports</dt><dd>{{ job.ports }}</dd></div>
+    <div><dt>Started</dt><dd class="mono" id="started-at">{{ job.started_at or '—' }}</dd></div>
+    <div><dt>Finished</dt><dd class="mono" id="finished-at">{{ job.finished_at or '—' }}</dd></div>
+  </dl>
+</section>
+
+<script>
+const terminalStates = new Set(["completed", "failed", "cancelled"]);
+const statusEl = document.getElementById("job-status");
+const progressText = document.getElementById("job-progress-text");
+const resultEl = document.getElementById("job-results");
+const progressBar = document.getElementById("progress-bar");
+const logEl = document.getElementById("scan-log");
+const errorEl = document.getElementById("job-error");
+const finishedEl = document.getElementById("finished-at");
+const cancelForm = document.getElementById("cancel-form");
+
+async function refreshJob() {
+  try {
+    const response = await fetch("{{ url_for('scan_job_api', job_id=job.id) }}", {cache: "no-store"});
+    if (!response.ok) return;
+    const job = await response.json();
+    statusEl.textContent = job.status.replaceAll("_", " ");
+    progressText.textContent = job.progress + "%";
+    resultEl.textContent = job.result_count;
+    progressBar.style.width = job.progress + "%";
+    logEl.textContent = job.log_text || "Waiting for scan output...";
+    logEl.scrollTop = logEl.scrollHeight;
+    errorEl.textContent = job.error || "";
+    errorEl.classList.toggle("hidden", !job.error);
+    finishedEl.textContent = job.finished_at || "—";
+
+    if (terminalStates.has(job.status)) {
+      if (cancelForm) cancelForm.remove();
+      return;
+    }
+    setTimeout(refreshJob, 1200);
+  } catch (_) {
+    setTimeout(refreshJob, 2000);
+  }
+}
+refreshJob();
+</script>
+{% endblock %}
