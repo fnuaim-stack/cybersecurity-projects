@@ -649,28 +649,25 @@ class ScannerService:
         with self._lock:
             self._processes[job_id] = process
 
-        timer = threading.Timer(timeout, process.kill)
-        timer.start()
         try:
-            while True:
-                if cancel_event.is_set():
-                    process.terminate()
-                    raise ScanCancelled("Scan cancelled.")
+            try:
+                output, _ = process.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired as error:
+                process.kill()
+                output, _ = process.communicate()
+                raise RuntimeError(f"Scanner timed out after {timeout} seconds.") from error
 
-                line = process.stdout.readline() if process.stdout else ""
-                if line:
+            if output:
+                for line in output.splitlines()[-80:]:
                     self.store.append_log(job_id, line[:500])
-                code = process.poll()
-                if code is not None:
-                    remainder = process.stdout.read() if process.stdout else ""
-                    if remainder:
-                        for extra in remainder.splitlines()[-20:]:
-                            self.store.append_log(job_id, extra[:500])
-                    if code != 0:
-                        raise RuntimeError(f"Scanner exited with code {code}. Check the scan log.")
-                    break
-                self.store.update(job_id, progress=min(85, self.store.get(job_id)["progress"] + 1))
+
+            if cancel_event.is_set():
+                raise ScanCancelled("Scan cancelled.")
+            if process.returncode != 0:
+                raise RuntimeError(
+                    f"Scanner exited with code {process.returncode}. Check the scan log."
+                )
+            self.store.update(job_id, progress=85)
         finally:
-            timer.cancel()
             with self._lock:
                 self._processes.pop(job_id, None)
