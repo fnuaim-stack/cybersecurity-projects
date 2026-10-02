@@ -16,15 +16,25 @@
     <div class="top-actions">
       <a class="button secondary small" href="{{ url_for('findings', source=job.provider) }}">View findings</a>
       {% if job.status in ['queued','running','cancel_requested'] %}
-      <form method="post" action="{{ url_for('scan_cancel', job_id=job.id) }}" id="cancel-form">
-        <button class="button danger small" type="submit">Cancel</button>
-      </form>
+      <form method="post" action="{{ url_for('scan_cancel', job_id=job.id) }}" id="cancel-form"><button class="button danger small" type="submit">Cancel</button></form>
       {% endif %}
     </div>
   </div>
   <div class="progress-track"><i id="progress-bar" style="width: {{ job.progress }}%"></i></div>
   <div id="job-error" class="scan-error {{ '' if job.error else 'hidden' }}">{{ job.error }}</div>
 </section>
+
+{% if job.import_summary %}
+<section class="panel">
+  <div class="panel-head"><div><h2>Changes from this scan</h2><p>Persistent findings are updated instead of duplicated.</p></div></div>
+  <div class="delta-grid">
+    <div><span>New</span><strong>{{ job.import_summary.get('created',0) }}</strong></div>
+    <div><span>Updated</span><strong>{{ job.import_summary.get('updated',0) }}</strong></div>
+    <div><span>Reopened</span><strong>{{ job.import_summary.get('reopened',0) }}</strong></div>
+    <div><span>Verified resolved</span><strong>{{ job.import_summary.get('verified_resolved',0) }}</strong></div>
+  </div>
+</section>
+{% endif %}
 
 <section class="panel">
   <div class="panel-head"><div><h2>Scan log</h2><p>Live scanner activity and import status.</p></div></div>
@@ -68,7 +78,6 @@ async function refreshJob() {
     errorEl.textContent = job.error || "";
     errorEl.classList.toggle("hidden", !job.error);
     finishedEl.textContent = job.finished_at || "—";
-
     if (terminalStates.has(job.status)) {
       if (cancelForm) cancelForm.remove();
       return;

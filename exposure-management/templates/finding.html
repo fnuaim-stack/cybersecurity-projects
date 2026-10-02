@@ -22,6 +22,20 @@
     </dl>
     <h3>Description</h3><p class="prose">{{ finding.description or 'No description provided.' }}</p>
     <h3>Remediation</h3><p class="prose">{{ finding.remediation or 'Review and remediate the finding.' }}</p>
+
+    {% set intel = finding.metadata.get('threat_intel', {}) %}
+    {% if intel %}
+    <h3>Threat intelligence</h3>
+    <div class="intel-box">
+      {% if intel.get('cisa_kev') %}
+      <div><strong>CISA KEV</strong><span>Known exploited in the wild</span></div>
+      {% endif %}
+      {% if intel.get('epss') %}
+      <div><strong>EPSS {{ (intel.epss.score * 100)|round(1) }}%</strong><span>Percentile {{ (intel.epss.percentile * 100)|round(1) }}%</span></div>
+      {% endif %}
+      <small>Updated {{ intel.get('updated_at', '—') }}</small>
+    </div>
+    {% endif %}
   </article>
 
   <aside class="stack">
@@ -41,17 +55,38 @@
         <button class="button secondary" type="submit">Save exception</button>
       </form>
     </section>
+    <section class="panel">
+      <h2>Add note</h2>
+      <form method="post" action="{{ url_for('finding_note', finding_id=finding.id) }}" class="form-stack">
+        <label>Author<input name="author" placeholder="optional"></label>
+        <label>Note<textarea name="note" rows="4" required placeholder="Validation result, ticket reference, remediation note..."></textarea></label>
+        <button class="button secondary" type="submit">Add note</button>
+      </form>
+    </section>
   </aside>
 </section>
 
-<section class="panel">
-  <div class="panel-head"><div><h2>History</h2><p>Lifecycle events for this finding.</p></div></div>
-  <div class="timeline">
-    {% for item in finding.history|reverse %}
-    <div class="timeline-item"><span></span><div><strong>{{ item.action.replace('_',' ') }}</strong><p>{{ item.details or '—' }}</p><small>{{ item.timestamp }}</small></div></div>
-    {% else %}
-    <p class="empty">No history yet.</p>
-    {% endfor %}
-  </div>
-</section>
+<div class="two-col">
+  <section class="panel">
+    <div class="panel-head"><div><h2>History</h2><p>Lifecycle events for this finding.</p></div></div>
+    <div class="timeline">
+      {% for item in finding.history|reverse %}
+      <div class="timeline-item"><span></span><div><strong>{{ item.action.replace('_',' ') }}</strong><p>{{ item.details or '—' }}</p><small>{{ item.timestamp }}</small></div></div>
+      {% else %}
+      <p class="empty">No history yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Notes</h2><p>Human context stays with the finding.</p></div></div>
+    <div class="note-list">
+      {% for item in notes %}
+      <article><div><strong>{{ item.author or 'Note' }}</strong><small>{{ item.created_at }}</small></div><p>{{ item.note }}</p></article>
+      {% else %}
+      <p class="empty">No notes yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
 {% endblock %}

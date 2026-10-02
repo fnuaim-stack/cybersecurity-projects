@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Triage · Exposure Management{% endblock %}
+{% block heading %}Triage rules{% endblock %}
+{% block eyebrow %}Reduce repeated noise{% endblock %}
+{% block content %}
+<div class="two-col">
+  <section class="panel">
+    <div class="panel-head"><div><h2>Suppression rules</h2><p>Wildcard rules automatically mark matching open findings as false positives.</p></div></div>
+    <div class="card-list">
+      {% for item in suppressions %}
+      <div class="rule-card">
+        <div class="rule-head">
+          <div><strong>{{ item.name }}</strong><span>{{ item.reason }}</span></div>
+          <span class="status">{{ 'enabled' if item.enabled else 'disabled' }}</span>
+        </div>
+        <div class="rule-grid">
+          <span>Source <code>{{ item.source_pattern }}</code></span>
+          <span>Asset <code>{{ item.asset_pattern }}</code></span>
+          <span>Title <code>{{ item.title_pattern }}</code></span>
+          <span>ID <code>{{ item.external_id_pattern }}</code></span>
+        </div>
+        <div class="panel-head rule-footer">
+          <small>{{ 'Expires ' + item.expires_at if item.expires_at else 'No expiry' }}</small>
+          <form method="post" action="{{ url_for('triage_suppression_toggle', rule_id=item.id) }}"><button class="button secondary small">{{ 'Disable' if item.enabled else 'Enable' }}</button></form>
+        </div>
+      </div>
+      {% else %}
+      <p class="empty">No suppression rules yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Create suppression</h2>
+    <form method="post" action="{{ url_for('triage_suppression_create') }}" class="form-stack">
+      <label>Name<input name="name" required placeholder="Ignore lab test finding"></label>
+      <label>Source pattern<input name="source_pattern" value="*" placeholder="nuclei"></label>
+      <label>Asset pattern<input name="asset_pattern" value="*" placeholder="lab-*"></label>
+      <label>Title pattern<input name="title_pattern" value="*" placeholder="*test*"></label>
+      <label>External ID pattern<input name="external_id_pattern" value="*" placeholder="CVE-*"></label>
+      <label>Reason<textarea name="reason" rows="3" required placeholder="Document why this should be suppressed."></textarea></label>
+      <label>Expires<input type="datetime-local" name="expires_at"></label>
+      <button class="button" type="submit">Save and apply</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

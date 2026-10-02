@@ -4,11 +4,19 @@
 {% block eyebrow %}Business context{% endblock %}
 {% block content %}
 <section class="panel">
-  <div class="panel-head"><div><h2>Asset inventory</h2><p>Criticality and exposure directly affect prioritization.</p></div></div>
+  <div class="panel-head"><div><h2>Asset inventory</h2><p>Criticality, ownership, exposure and tags add context to prioritization.</p></div></div>
   <div class="asset-grid">
     {% for asset in assets %}
     <article class="asset-card">
       <div class="asset-title"><div><strong>{{ asset.asset_key }}</strong><span>{{ asset.active_findings }} active / {{ asset.finding_count }} total</span></div><span class="pill">C{{ asset.criticality }}</span></div>
+      <div class="chip-row asset-tags">
+        {% for tag in asset_tags.get(asset.asset_key, []) %}
+        <form method="post" action="{{ url_for('asset_tag_remove') }}">
+          <input type="hidden" name="asset" value="{{ asset.asset_key }}"><input type="hidden" name="tag" value="{{ tag }}">
+          <button class="chip removable" title="Remove tag">{{ tag }} ×</button>
+        </form>
+        {% endfor %}
+      </div>
       <form method="post" action="{{ url_for('asset_update') }}" class="form-grid compact">
         <input type="hidden" name="asset" value="{{ asset.asset_key }}">
         <label>Criticality<select name="criticality">{% for value in range(1,6) %}<option value="{{ value }}" {{ 'selected' if asset.criticality == value else '' }}>{{ value }}</option>{% endfor %}</select></label>
@@ -17,9 +25,14 @@
         <label class="check"><input type="checkbox" name="internet_exposed" {{ 'checked' if asset.internet_exposed else '' }}> Internet exposed</label>
         <div class="wide"><button class="button secondary small" type="submit">Save asset</button></div>
       </form>
+      <form method="post" action="{{ url_for('asset_tag') }}" class="inline-form">
+        <input type="hidden" name="asset" value="{{ asset.asset_key }}">
+        <input name="tag" placeholder="Add tag" required>
+        <button class="button ghost small">Add</button>
+      </form>
     </article>
     {% else %}
-    <p class="empty">No assets yet. Import a scan first.</p>
+    <p class="empty">No assets yet. Import or run a scan first.</p>
     {% endfor %}
   </div>
 </section>
