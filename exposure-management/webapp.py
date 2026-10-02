@@ -459,15 +459,18 @@ def create_app(
     @app.post("/automation/profiles")
     def automation_profile_create():
         try:
-            profile = platform.create_profile(
+            provider = request.form.get("provider", "")
+            target = request.form.get("target", "")
+            ports = request.form.get("ports", "quick")
+            scanner._validate(provider, target, ports)
+            platform.create_profile(
                 name=request.form.get("name", ""),
-                provider=request.form.get("provider", ""),
-                target=request.form.get("target", ""),
+                provider=provider,
+                target=target,
                 scope=request.form.get("scope", "default"),
-                ports=request.form.get("ports", "quick"),
+                ports=ports,
                 partial=request.form.get("partial") == "on",
             )
-            scanner._validate(profile["provider"], profile["target"], profile["ports"])
             flash("Scan profile saved.", "success")
         except Exception as error:
             flash(f"Could not save profile: {error}", "error")
