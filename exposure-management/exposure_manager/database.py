@@ -298,7 +298,9 @@ class Database:
         source: str | None = None,
         owner: str | None = None,
         min_risk: int | None = None,
+        query: str | None = None,
         limit: int = 500,
+        offset: int = 0,
     ) -> list[dict]:
         where = []
         args: list[object] = []
@@ -318,8 +320,16 @@ class Database:
             where.append("f.risk_score>=?")
             args.append(min_risk)
 
+        if query:
+            needle = f"%{query.strip()}%"
+            where.append(
+                "(f.title LIKE ? OR f.external_id LIKE ? OR f.description LIKE ? "
+                "OR a.asset_key LIKE ? OR a.hostname LIKE ? OR f.owner LIKE ?)"
+            )
+            args.extend([needle] * 6)
+
         clause = " WHERE " + " AND ".join(where) if where else ""
-        args.append(limit)
+        args.extend([limit, max(0, offset)])
 
         with self.connect() as conn:
             rows = conn.execute(
@@ -331,7 +341,7 @@ class Database:
                 JOIN assets a ON a.id=f.asset_id
                 {clause}
                 ORDER BY f.risk_score DESC, f.last_seen DESC
-                LIMIT ?
+                LIMIT ? OFFSET ?
                 """,
                 args,
             ).fetchall()
