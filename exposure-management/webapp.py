@@ -87,7 +87,7 @@ def create_app(
         analytics = build_analytics(manager.db)
         queue = manager.remediation_queue(8)
         scans = manager.db.list_scans(8)
-        scan_jobs = scanner.store.list(8)
+        scan_jobs = [scanner.store.get(item["id"]) for item in scanner.store.list(8)]
         return render_template(
             "dashboard.html",
             page="dashboard",
