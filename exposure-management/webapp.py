@@ -58,11 +58,7 @@ def create_app(
     scanner = ScannerService(manager)
     platform = manager.platform
     scheduler = ScanScheduler(scanner, platform)
-    should_start_scheduler = (
-        start_scheduler
-        if start_scheduler is not None
-        else database_path is None and os.environ.get("EXPOSURE_DISABLE_SCHEDULER") != "1"
-    )
+    should_start_scheduler = bool(start_scheduler) and os.environ.get("EXPOSURE_DISABLE_SCHEDULER") != "1"
     if should_start_scheduler:
         scheduler.start()
 
@@ -688,7 +684,7 @@ def create_app(
     return app
 
 
-app = create_app()
+app = create_app(start_scheduler=False)
 
 
 def _open_browser() -> None:
@@ -696,6 +692,8 @@ def _open_browser() -> None:
 
 
 if __name__ == "__main__":
+    if os.environ.get("EXPOSURE_DISABLE_SCHEDULER") != "1":
+        app.config["SCHEDULER"].start()
     if os.environ.get("EXPOSURE_NO_BROWSER") != "1":
         threading.Timer(1.0, _open_browser).start()
     app.run(host="127.0.0.1", port=5055, debug=False)
