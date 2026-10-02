@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Scan · Exposure Management{% endblock %}
+{% block heading %}Run a scan{% endblock %}
+{% block eyebrow %}Active scanning{% endblock %}
+{% block content %}
+<section class="provider-grid">
+  {% for provider in providers %}
+  <article class="provider-card {{ 'unavailable' if not provider.available else '' }}">
+    <div class="provider-head">
+      <strong>{{ provider.name }}</strong>
+      <span class="availability {{ 'ok' if provider.available else 'off' }}">{{ 'Ready' if provider.available else 'Not installed' }}</span>
+    </div>
+    <p>{{ provider.detail }}</p>
+    <small>{{ provider.target_hint }}</small>
+  </article>
+  {% endfor %}
+</section>
+
+<div class="two-col scan-layout">
+  <section class="panel">
+    <div class="panel-head"><div><h2>Start scan</h2><p>Results are imported automatically when the scan completes.</p></div></div>
+    <form method="post" class="form-stack" id="scan-form">
+      <label>Scanner
+        <select name="provider" id="provider" required>
+          {% for provider in providers %}
+          <option value="{{ provider.id }}" {{ 'disabled' if not provider.available else '' }}>
+            {{ provider.name }}{% if not provider.available %} — not installed{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>Target
+        <input name="target" id="target" required placeholder="192.168.1.10">
+        <small id="target-hint">Host, IP, or small CIDR subnet.</small>
+      </label>
+
+      <label>Scope
+        <input name="scope" value="default" placeholder="prod, home-lab, dmz">
+      </label>
+
+      <div id="ports-fields" class="form-stack">
+        <label>Ports
+          <select name="port_mode" id="port-mode">
+            <option value="quick">Quick — common ports</option>
+            <option value="web">Web ports</option>
+            <option value="custom">Custom ports</option>
+          </select>
+        </label>
+        <label id="custom-ports-row" class="hidden">Custom ports
+          <input name="custom_ports" id="custom-ports" placeholder="22,80,443,8000-8010">
+        </label>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" name="partial">
+        This is a partial scan. Do not mark missing findings as fixed.
+      </label>
+
+      <label class="check authorization">
+        <input type="checkbox" name="authorized" required>
+        I am authorized to scan this target.
+      </label>
+
+      <button class="button" type="submit">Start scan</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>How it works</h2><p>No manual import step is needed.</p></div></div>
+    <div class="step-list">
+      <div><span>1</span><p><strong>Run</strong> the selected scanner in the background.</p></div>
+      <div><span>2</span><p><strong>Normalize</strong> the scanner output into findings.</p></div>
+      <div><span>3</span><p><strong>Prioritize</strong> using asset and threat context.</p></div>
+      <div><span>4</span><p><strong>Track</strong> remediation and verify fixes on rescans.</p></div>
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Recent scan jobs</h2><p>Active scans and recent completed jobs.</p></div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Status</th><th>Scanner</th><th>Target</th><th>Scope</th><th>Results</th><th>Started</th></tr></thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td><a href="{{ url_for('scan_job', job_id=job.id) }}"><span class="job-status job-{{ job.status }}">{{ job.status.replace('_',' ') }}</span></a></td>
+          <td>{{ job.provider }}</td>
+          <td class="mono">{{ job.target }}</td>
+          <td>{{ job.scope }}</td>
+          <td>{{ job.result_count }}</td>
+          <td class="mono">{{ (job.started_at or job.created_at)[:19].replace('T',' ') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty">No scan jobs yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+const provider = document.getElementById("provider");
+const target = document.getElementById("target");
+const hint = document.getElementById("target-hint");
+const portsFields = document.getElementById("ports-fields");
+const portMode = document.getElementById("port-mode");
+const customPortsRow = document.getElementById("custom-ports-row");
+
+const hints = {
+  "builtin-network": ["192.168.1.10", "Host, IP, or small CIDR subnet (up to 256 addresses).", true],
+  "builtin-web": ["https://app.example.com", "Full HTTP or HTTPS URL.", false],
+  "nmap": ["192.168.1.0/24", "Host, IP, or small CIDR subnet (up to 256 addresses).", true],
+  "nuclei": ["https://app.example.com", "Full HTTP or HTTPS URL.", false],
+  "trivy": ["C:\\path\\to\\project", "Local file or folder path on this PC.", false]
+};
+
+function updateProvider() {
+  const info = hints[provider.value] || hints["builtin-network"];
+  target.placeholder = info[0];
+  hint.textContent = info[1];
+  portsFields.classList.toggle("hidden", !info[2]);
+}
+function updatePorts() {
+  customPortsRow.classList.toggle("hidden", portMode.value !== "custom");
+}
+provider.addEventListener("change", updateProvider);
+portMode.addEventListener("change", updatePorts);
+updateProvider();
+updatePorts();
+</script>
+{% endblock %}
