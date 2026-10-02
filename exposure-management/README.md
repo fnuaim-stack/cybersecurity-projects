@@ -28,7 +28,19 @@ py webapp.py
 
 The browser opens at `http://127.0.0.1:5055`.
 
-For a quick test, import `samples/demo_findings.json` from the **Import scans** page and choose `generic`.
+Open **Scan** to scan directly from the app.
+
+The built-in network and web scanners work without extra tools. If Nmap, Nuclei, or Trivy are installed and available in PATH, the app enables those scanners too.
+
+Quick local test:
+
+1. Open **Scan**.
+2. Choose **Built-in network scan**.
+3. Enter a host/IP you are authorized to test.
+4. Click **Start scan**.
+5. The results are added to Findings automatically.
+
+You can still test with `samples/demo_findings.json` from **Import scans** if you do not want to run a live scan.
 
 ## CLI
 
