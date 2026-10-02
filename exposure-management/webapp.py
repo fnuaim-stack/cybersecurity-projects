@@ -14,6 +14,7 @@ from exposure_manager.active_scans import ScannerService
 from exposure_manager.analytics import build_analytics
 from exposure_manager.campaigns import CampaignManager
 from exposure_manager.intel import enrich_findings, enrich_findings_online
+from exposure_manager.notifications import NotificationService
 from exposure_manager.scheduler import ScanScheduler
 from exposure_manager.models import VALID_STATUSES
 from exposure_manager.reporting import to_csv, to_json, to_markdown
@@ -58,6 +59,7 @@ def create_app(
     scanner = ScannerService(manager)
     platform = manager.platform
     scheduler = ScanScheduler(scanner, platform)
+    notifier = NotificationService(manager, platform)
     should_start_scheduler = bool(start_scheduler) and os.environ.get("EXPOSURE_DISABLE_SCHEDULER") != "1"
     if should_start_scheduler:
         scheduler.start()
@@ -67,6 +69,7 @@ def create_app(
     app.config["SCANNER"] = scanner
     app.config["PLATFORM"] = platform
     app.config["SCHEDULER"] = scheduler
+    app.config["NOTIFIER"] = notifier
     app.config["DATABASE_PATH"] = str(db_path)
 
     @app.context_processor
@@ -190,9 +193,11 @@ def create_app(
                 verification_misses=max(1, int(request.form.get("verify_misses", "2"))),
                 verify_missing=request.form.get("partial") != "on",
             )
+            notification = notifier.notify_scan(result)
             flash(
                 f"Imported {result['imported']} findings. "
-                f"{result['created']} new, {result['updated']} updated.",
+                f"{result['created']} new, {result['updated']} updated."
+                + (f" Sent {notification['sent']} notification(s)." if notification.get("sent") else ""),
                 "success",
             )
             return redirect(url_for("findings"))
@@ -654,6 +659,30 @@ def create_app(
         except Exception as error:
             return {"error": str(error)}, 400
         return {"job": job}, 202
+
+    @app.route("/settings", methods=["GET", "POST"])
+    def settings():
+        if request.method == "POST":
+            platform.set_setting(
+                "notifications_enabled",
+                request.form.get("notifications_enabled") == "on",
+            )
+            min_risk_raw = request.form.get("notification_min_risk", "70")
+            try:
+                min_risk = max(0, min(100, int(min_risk_raw)))
+            except ValueError:
+                min_risk = 70
+            platform.set_setting("notification_min_risk", min_risk)
+            flash("Settings saved.", "success")
+            return redirect(url_for("settings"))
+
+        return render_template(
+            "settings.html",
+            page="settings",
+            notification=notifier.configured(),
+            providers=scanner.providers(),
+            api_token_configured=bool(os.environ.get("EXPOSURE_API_TOKEN")),
+        )
 
     @app.get("/reports/<report_format>")
     def download_report(report_format: str):
