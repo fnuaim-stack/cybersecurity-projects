@@ -1,0 +1,14 @@
+{
+  "title": "Exposure Management Demo KEV",
+  "vulnerabilities": [
+    {
+      "cveID": "CVE-2099-0001",
+      "vendorProject": "Demo Vendor",
+      "product": "Demo VPN",
+      "dateAdded": "2026-10-01",
+      "dueDate": "2026-10-15",
+      "knownRansomwareCampaignUse": "Unknown",
+      "requiredAction": "Apply the fictional demo update."
+    }
+  ]
+}
