@@ -12,7 +12,8 @@ from flask import Flask, Response, flash, redirect, render_template, request, ur
 from exposure_manager.active_scans import ScannerService
 from exposure_manager.analytics import build_analytics
 from exposure_manager.campaigns import CampaignManager
-from exposure_manager.intel import enrich_findings
+from exposure_manager.intel import enrich_findings, enrich_findings_online
+from exposure_manager.scheduler import ScanScheduler
 from exposure_manager.models import VALID_STATUSES
 from exposure_manager.reporting import to_csv, to_json, to_markdown
 from exposure_manager.service import ExposureManager
@@ -34,7 +35,11 @@ FORMATS = [
 ]
 
 
-def create_app(database_path: str | Path | None = None) -> Flask:
+def create_app(
+    database_path: str | Path | None = None,
+    *,
+    start_scheduler: bool | None = None,
+) -> Flask:
     app = Flask(
         __name__,
         template_folder=str(BASE_DIR / "templates"),
@@ -50,10 +55,21 @@ def create_app(database_path: str | Path | None = None) -> Flask:
     manager = ExposureManager(db_path)
     campaigns = CampaignManager(manager.db)
     scanner = ScannerService(manager)
+    platform = manager.platform
+    scheduler = ScanScheduler(scanner, platform)
+    should_start_scheduler = (
+        start_scheduler
+        if start_scheduler is not None
+        else database_path is None and os.environ.get("EXPOSURE_DISABLE_SCHEDULER") != "1"
+    )
+    if should_start_scheduler:
+        scheduler.start()
 
     app.config["MANAGER"] = manager
     app.config["CAMPAIGNS"] = campaigns
     app.config["SCANNER"] = scanner
+    app.config["PLATFORM"] = platform
+    app.config["SCHEDULER"] = scheduler
     app.config["DATABASE_PATH"] = str(db_path)
 
     @app.context_processor
@@ -70,6 +86,7 @@ def create_app(database_path: str | Path | None = None) -> Flask:
         analytics = build_analytics(manager.db)
         queue = manager.remediation_queue(8)
         scans = manager.db.list_scans(8)
+        scan_jobs = scanner.store.list(8)
         return render_template(
             "dashboard.html",
             page="dashboard",
@@ -77,6 +94,7 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             analytics=analytics,
             queue=queue,
             scans=scans,
+            scan_jobs=scan_jobs,
         )
 
     @app.route("/scan", methods=["GET", "POST"])
@@ -196,22 +214,32 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             "source": request.args.get("source") or None,
             "owner": request.args.get("owner") or None,
         }
+        query = request.args.get("q", "").strip()
         min_risk_raw = request.args.get("min_risk", "").strip()
         min_risk = int(min_risk_raw) if min_risk_raw.isdigit() else None
+        page_number = max(1, int(request.args.get("page", "1") or "1"))
+        page_size = 100
         rows = manager.db.list_findings(
             status=filters["status"],
             severity=filters["severity"],
             source=filters["source"],
             owner=filters["owner"],
             min_risk=min_risk,
-            limit=1000,
+            query=query or None,
+            limit=page_size + 1,
+            offset=(page_number - 1) * page_size,
         )
+        has_next = len(rows) > page_size
+        rows = rows[:page_size]
         return render_template(
             "findings.html",
             page="findings",
             findings=rows,
             filters=filters,
             min_risk=min_risk_raw,
+            query=query,
+            page_number=page_number,
+            has_next=has_next,
         )
 
     @app.get("/findings/<int:finding_id>")
@@ -225,6 +253,7 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             "finding.html",
             page="findings",
             finding=finding,
+            notes=platform.notes(finding_id),
         )
 
     @app.post("/findings/<int:finding_id>/update")
@@ -251,6 +280,19 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             flash(f"Could not accept risk: {error}", "error")
         return redirect(url_for("finding_detail", finding_id=finding_id))
 
+    @app.post("/findings/<int:finding_id>/notes")
+    def finding_note(finding_id: int):
+        try:
+            platform.add_note(
+                finding_id,
+                request.form.get("note", ""),
+                request.form.get("author", ""),
+            )
+            flash("Note added.", "success")
+        except Exception as error:
+            flash(f"Could not add note: {error}", "error")
+        return redirect(url_for("finding_detail", finding_id=finding_id))
+
     @app.get("/assets")
     def assets():
         return render_template(
@@ -258,6 +300,7 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             page="assets",
             assets=manager.db.list_assets(),
             aliases=manager.assets.list_aliases(),
+            asset_tags=platform.asset_tags_map(),
         )
 
     @app.post("/assets/update")
@@ -286,6 +329,21 @@ def create_app(database_path: str | Path | None = None) -> Flask:
             flash("Asset alias saved.", "success")
         except Exception as error:
             flash(f"Could not save alias: {error}", "error")
+        return redirect(url_for("assets"))
+
+    @app.post("/assets/tag")
+    def asset_tag():
+        try:
+            platform.add_asset_tag(request.form.get("asset", ""), request.form.get("tag", ""))
+            flash("Asset tag added.", "success")
+        except Exception as error:
+            flash(f"Could not add tag: {error}", "error")
+        return redirect(url_for("assets"))
+
+    @app.post("/assets/tag/remove")
+    def asset_tag_remove():
+        platform.remove_asset_tag(request.form.get("asset", ""), request.form.get("tag", ""))
+        flash("Asset tag removed.", "success")
         return redirect(url_for("assets"))
 
     @app.route("/campaigns", methods=["GET", "POST"])
