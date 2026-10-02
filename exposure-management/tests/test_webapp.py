@@ -22,7 +22,7 @@ class WebAppTests(unittest.TestCase):
         self.tempdir.cleanup()
 
     def test_main_pages_load(self):
-        for path in ["/", "/import", "/findings", "/assets", "/campaigns", "/analytics", "/intel", "/health"]:
+        for path in ["/", "/scan", "/import", "/findings", "/assets", "/campaigns", "/analytics", "/intel", "/health"]:
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200, path)
 
